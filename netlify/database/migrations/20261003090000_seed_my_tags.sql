@@ -12,5 +12,17 @@ insert into my_tags (name, description) values
   ('spring', $$Clearly suited to spring. Food: fresh greens, asparagus, peas, new potatoes, rhubarb, early strawberries, light fresh dishes. Clothes: light layers, trench coats, pastels, florals. Home/outings: blossom, gardening and planting, fresh flowers, spring cleaning. Leave out if the item isn't seasonal.$$),
   ('summer', $$Clearly suited to hot weather. Food: salads, BBQ/grilling, no-cook meals, stone fruit, berries, tomatoes, ice cream, iced drinks. Clothes: linen, sundresses, shorts, sandals, swimwear. Outings: beach, pool, picnics, eating outdoors. Leave out if the item isn't seasonal.$$),
   ('autumn', $$Clearly suited to autumn. Food: pumpkin, squash, apples, pears, mushrooms, warm spices, cosy bakes, crumbles. Clothes: knitwear, layering, boots, warm tones (rust, brown, burgundy, olive). Home/outings: falling leaves, harvest, cosy styling. Leave out if the item isn't seasonal.$$),
-  ('winter', $$Clearly suited to cold weather. Food: soups, stews, roasts, slow-cooked dishes, hot drinks, rich comfort food. Clothes: coats, heavy knits, scarves, thermals. Home/outings: snow, fireplaces, candles, cosy interiors. Leave out if the item isn't seasonal.$$)
+  ('winter', $$Clearly suited to cold weather. Food: soups, stews, roasts, slow-cooked dishes, hot drinks, rich comfort food. Clothes: coats, heavy knits, scarves, thermals. Home/outings: snow, fireplaces, candles, cosy interiors. Leave out if the item isn't seasonal.$$),
+  ('treat meal', $$Indulgent rather than healthy: sweets, desserts, cakes, chocolate, deep-fried or heavily fried food, fast-food style dishes, very cheesy, creamy or sugary food. Usually the opposite of "healthy".$$),
+  ('snack', $$Small bites between meals, not a full meal: energy balls, bars, dips with veg or crackers, popcorn, fruit-based snacks, small baked bites, yoghurt pots.$$),
+  ('sewing pattern', $$Only when the item clearly is, or links to, an actual sewing pattern you could buy or download (a named pattern, pattern company or designer, a pattern shop or PDF pattern page). Not general sewing inspiration or tutorials without a pattern.$$),
+  ('upcycle', $$Making something new from something old: refashioning clothes, thrifted or secondhand fabric, scraps, old furniture or household items given a new use or look.$$),
+  ('hiking', $$Anything hiking: trails and walks, tramping routes, hiking gear and clothing, packing lists, trail snacks, hiking tips and safety.$$),
+  ('camping', $$Anything camping or caravan related: campsites, tents, campervans and caravans, camp cooking, camping gear, packing lists, van organisation.$$),
+  ('organisation', $$Storage, decluttering, tidying and cleaning systems, labelling, planners and routines, organising a room, drawer, pantry, wardrobe or van.$$),
+  ('travel', $$Trips and places to visit: destinations, itineraries, accommodation, restaurants and cafes to try while away, packing tips, travel hacks.$$),
+  ('gift ideas', $$Something that would make a good present for someone: products, handmade gifts, experiences, gift guides, stocking fillers, gift wrapping ideas.$$),
+  ('piano', $$Anything piano: pieces and sheet music, songs to learn, technique and practice tips, music theory for piano, piano covers and tutorials.$$),
+  ('house decor', $$Decorating and styling a home: interiors, furniture, colour schemes, art and wall styling, lighting, soft furnishings, room makeovers, decor to buy or make.$$),
+  ('gardening', $$Anything gardening: growing vegetables, herbs, fruit or flowers, houseplants, garden design, planting guides, composting, garden DIY.$$)
 on conflict (name) do nothing;
