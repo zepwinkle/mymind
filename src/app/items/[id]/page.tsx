@@ -31,14 +31,19 @@ export default async function ItemPage({ params }: PageProps<"/items/[id]">) {
       <div className="mx-auto max-w-6xl px-4 pt-3">
         <BackButton />
       </div>
-      <main className="mx-auto grid max-w-6xl gap-8 px-4 pb-6 pt-2 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-        <div>
+      <main className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-8 px-4 pb-6 pt-2 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+        <div className="min-w-0">
           {item.image_urls.length > 1 ? (
             <div>
-              <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 [scrollbar-width:thin]">
+              <div className="flex w-full snap-x snap-mandatory gap-3 overflow-x-auto pb-2 [scrollbar-width:thin]">
                 {item.image_urls.map((src, i) => (
                   <div key={src} className="relative w-[85%] shrink-0 snap-center md:w-[90%]">
-                    <img src={src} alt="" className="w-full rounded-2xl bg-card shadow-sm ring-1 ring-border" loading={i > 1 ? "lazy" : undefined} />
+                    <img
+                      src={src}
+                      alt=""
+                      className="max-h-[70vh] w-full rounded-2xl bg-card object-contain shadow-sm ring-1 ring-border"
+                      loading={i > 1 ? "lazy" : undefined}
+                    />
                     <span className="absolute right-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-xs text-white">
                       {i + 1} / {item.image_urls.length}
                     </span>
@@ -48,7 +53,7 @@ export default async function ItemPage({ params }: PageProps<"/items/[id]">) {
               <p className="text-center text-xs text-muted">Swipe to see all {item.image_urls.length} images</p>
             </div>
           ) : item.thumbnail_url ? (
-            <img src={item.thumbnail_url} alt="" className="w-full rounded-2xl bg-card shadow-sm ring-1 ring-border" />
+            <img src={item.thumbnail_url} alt="" className="max-h-[80vh] w-full rounded-2xl bg-card object-contain shadow-sm ring-1 ring-border" />
           ) : (
             <div className="rounded-2xl bg-card p-8 font-serif text-2xl leading-snug ring-1 ring-border">
               {item.note || item.caption || item.url}
@@ -57,7 +62,7 @@ export default async function ItemPage({ params }: PageProps<"/items/[id]">) {
           <ReplaceImageButton itemId={item.id} hasImage={Boolean(item.thumbnail_url)} />
         </div>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <div>
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted">
               {item.kind && (
