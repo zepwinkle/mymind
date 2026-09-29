@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AutoRefresh } from "@/components/AutoRefresh";
+import { BackButton } from "@/components/BackButton";
 import { Header } from "@/components/Header";
 import { ItemEditor } from "@/components/ItemEditor";
 import { ReplaceImageButton } from "@/components/ReplaceImageButton";
@@ -27,7 +28,10 @@ export default async function ItemPage({ params }: PageProps<"/items/[id]">) {
     <>
       <Header />
       <AutoRefresh active={item.status === "processing"} />
-      <main className="mx-auto grid max-w-6xl gap-8 px-4 py-6 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+      <div className="mx-auto max-w-6xl px-4 pt-3">
+        <BackButton />
+      </div>
+      <main className="mx-auto grid max-w-6xl gap-8 px-4 pb-6 pt-2 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
         <div>
           {item.image_urls.length > 1 ? (
             <div>

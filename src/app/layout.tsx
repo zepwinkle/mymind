@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Instrument_Serif } from "next/font/google";
+import { NavigationTracker } from "@/components/BackButton";
 import { RefreshOnReturn } from "@/components/RefreshOnReturn";
 import "./globals.css";
 
@@ -24,6 +25,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" className={`${sans.variable} ${serif.variable} h-full antialiased`}>
       <body className="min-h-full font-sans">
         <RefreshOnReturn />
+        <NavigationTracker />
         {children}
       </body>
     </html>
