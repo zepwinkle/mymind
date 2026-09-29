@@ -2,29 +2,116 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { KINDS, KIND_LABELS, type Kind } from "@/lib/types";
 import { api } from "./client-utils";
-import { buttonClass, ghostButtonClass, inputClass } from "./Modal";
+import { ghostButtonClass, inputClass } from "./Modal";
 
 interface Props {
   item: { id: string; title: string; note: string; tags: string[]; kind: Kind | null; completedAt: string | null };
   groups: { id: string; name: string; member: boolean }[];
 }
 
+type Fields = { title: string; note: string; tags: string; kind: string };
+const FIELD_NAMES = ["title", "note", "tags", "kind"] as const;
+
+function fieldsOf(item: Props["item"]): Fields {
+  return { title: item.title, note: item.note, tags: item.tags.join(", "), kind: item.kind ?? "" };
+}
+
+/** Just the fields that differ from what the server has, in the shape the API expects. */
+function changesBetween(fields: Fields, saved: Fields): Record<string, unknown> | undefined {
+  const body: Record<string, unknown> = {};
+  if (fields.title !== saved.title) body.title = fields.title;
+  if (fields.note !== saved.note) body.note = fields.note;
+  if (fields.tags !== saved.tags) body.tags = fields.tags.split(",").map((t) => t.trim()).filter(Boolean);
+  if (fields.kind !== saved.kind && fields.kind) body.kind = fields.kind;
+  return Object.keys(body).length ? body : undefined;
+}
+
 export function ItemEditor({ item, groups }: Props) {
   const router = useRouter();
-  const [title, setTitle] = useState(item.title);
-  const [note, setNote] = useState(item.note);
-  const [tags, setTags] = useState(item.tags.join(", "));
-  const [kind, setKind] = useState<string>(item.kind ?? "");
+  const [fields, setFields] = useState<Fields>(() => fieldsOf(item));
+  // What the server has, as far as we know. Anything in `fields` that differs is unsaved.
+  const [saved, setSaved] = useState<Fields>(() => fieldsOf(item));
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [membership, setMembership] = useState(groups);
   const [completedAt, setCompletedAt] = useState(item.completedAt);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const dirty =
-    title !== item.title || note !== item.note || tags !== item.tags.join(", ") || kind !== (item.kind ?? "");
+  // When the page refreshes with new data (the AI finished, another device edited it…),
+  // take the new values only for fields you haven't changed, so your typing is never lost.
+  const incoming = fieldsOf(item);
+  const incomingKey = JSON.stringify(incoming);
+  const [lastIncomingKey, setLastIncomingKey] = useState(incomingKey);
+  if (incomingKey !== lastIncomingKey) {
+    setLastIncomingKey(incomingKey);
+    setFields((current) => {
+      const next = { ...current };
+      for (const name of FIELD_NAMES) if (current[name] === saved[name]) next[name] = incoming[name];
+      return next;
+    });
+    setSaved(incoming);
+  }
+
+  const setField = (name: keyof Fields, value: string) => setFields((f) => ({ ...f, [name]: value }));
+
+  // Latest values for the save callbacks below (which can run after this render).
+  const latest = useRef({ fields, saved });
+  useEffect(() => {
+    latest.current = { fields, saved };
+  });
+  const queue = useRef<Promise<void>>(Promise.resolve());
+
+  /** Saves any unsaved changes. `keepalive` lets the save finish even if you leave the page. */
+  const flush = useCallback(
+    (keepalive = false) => {
+      queue.current = queue.current.then(async () => {
+        const { fields: snapshot, saved: base } = latest.current;
+        const body = changesBetween(snapshot, base);
+        if (!body) return;
+        setSaveState("saving");
+        try {
+          const res = await fetch(`/api/items/${item.id}`, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(body),
+            keepalive,
+          });
+          if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Couldn't save (${res.status})`);
+          latest.current = { ...latest.current, saved: snapshot };
+          setSaved(snapshot);
+          setSaveState("saved");
+          if (!keepalive) router.refresh();
+        } catch (err) {
+          setSaveState("error");
+          setError(err instanceof Error ? err.message : String(err));
+        }
+      });
+      return queue.current;
+    },
+    [item.id, router],
+  );
+
+  const dirty = Boolean(changesBetween(fields, saved));
+
+  // Save a moment after you stop typing.
+  useEffect(() => {
+    if (!dirty) return;
+    const timer = setTimeout(() => void flush(), 1000);
+    return () => clearTimeout(timer);
+  }, [fields, dirty, flush]);
+
+  // …and straight away if you leave the page or switch apps.
+  useEffect(() => {
+    const onHide = () => document.visibilityState === "hidden" && void flush(true);
+    document.addEventListener("visibilitychange", onHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      void flush(true);
+    };
+  }, [flush]);
 
   async function run(label: string, fn: () => Promise<unknown>) {
     setBusy(label);
@@ -37,15 +124,6 @@ export function ItemEditor({ item, groups }: Props) {
       setBusy(null);
     }
   }
-
-  const save = () =>
-    run("save", async () => {
-      await api(`/api/items/${item.id}`, {
-        method: "PATCH",
-        json: { title, note, tags: tags.split(",").map((t) => t.trim()).filter(Boolean), ...(kind ? { kind } : {}) },
-      });
-      router.refresh();
-    });
 
   const toggleGroup = (groupId: string, member: boolean) =>
     run(`group-${groupId}`, async () => {
@@ -68,7 +146,7 @@ export function ItemEditor({ item, groups }: Props) {
 
   const reprocess = () =>
     run("reprocess", async () => {
-      if (dirty) await save();
+      await flush();
       await api(`/api/items/${item.id}/reprocess`, { method: "POST" });
       router.refresh();
     });
@@ -112,22 +190,28 @@ export function ItemEditor({ item, groups }: Props) {
 
       <label className="block">
         <span className="mb-1 block text-sm text-muted">Title</span>
-        <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} />
+        <input className={inputClass} value={fields.title} onChange={(e) => setField("title", e.target.value)} />
       </label>
 
       <label className="block">
-        <span className="mb-1 block text-sm text-muted">Your notes</span>
+        <span className="mb-1 flex justify-between text-sm text-muted">
+          Your notes
+          <span aria-live="polite" className={saveState === "error" ? "text-red-600" : ""}>
+            {dirty || saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved ✓" : saveState === "error" ? "Not saved" : ""}
+          </span>
+        </span>
         <textarea
           className={`${inputClass} min-h-28`}
           placeholder="Anything to remember: what it is, where it's from, what you thought…"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
+          value={fields.note}
+          onChange={(e) => setField("note", e.target.value)}
+          onBlur={() => void flush()}
         />
       </label>
 
       <label className="block">
         <span className="mb-1 block text-sm text-muted">Tags (comma separated)</span>
-        <input className={inputClass} value={tags} onChange={(e) => setTags(e.target.value)} />
+        <input className={inputClass} value={fields.tags} onChange={(e) => setField("tags", e.target.value)} onBlur={() => void flush()} />
         {item.tags.length > 0 && (
           <span className="mt-2 flex flex-wrap gap-1.5">
             {item.tags.map((t) => (
@@ -141,8 +225,8 @@ export function ItemEditor({ item, groups }: Props) {
 
       <label className="block">
         <span className="mb-1 block text-sm text-muted">Category</span>
-        <select className={inputClass} value={kind} onChange={(e) => setKind(e.target.value)}>
-          {!kind && <option value="">Not categorised yet</option>}
+        <select className={inputClass} value={fields.kind} onChange={(e) => setField("kind", e.target.value)}>
+          {!fields.kind && <option value="">Not categorised yet</option>}
           {KINDS.map((k) => (
             <option key={k} value={k}>
               {KIND_LABELS[k]}
@@ -152,9 +236,6 @@ export function ItemEditor({ item, groups }: Props) {
       </label>
 
       <div className="flex flex-wrap gap-2">
-        <button className={buttonClass} onClick={save} disabled={!dirty || !!busy}>
-          {busy === "save" ? "Saving…" : "Save changes"}
-        </button>
         <button className={ghostButtonClass} onClick={reprocess} disabled={!!busy} title="Re-read the link and re-run the AI, using your notes">
           {busy === "reprocess" ? "Starting…" : "Re-run AI"}
         </button>

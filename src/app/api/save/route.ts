@@ -9,6 +9,17 @@ import { updateItem } from "@/lib/items";
 export const maxDuration = 60;
 
 // Netlify functions accept request bodies up to about 4.5 MB of binary data.
+const FIELD_ALIASES: Record<string, "url" | "note" | "image"> = {
+  url: "url",
+  link: "url",
+  note: "note",
+  notes: "note",
+  image: "image",
+  picture: "image",
+  photo: "image",
+  screenshot: "image",
+};
+
 const MAX_UPLOAD_BYTES = 4_400_000;
 
 /**
@@ -27,17 +38,25 @@ export async function POST(request: Request) {
 
   const type = request.headers.get("content-type") ?? "";
   try {
+    // Field names are matched loosely ("Note", "NOTE", "notes"…) because the iPhone
+    // keyboard likes to capitalise them when you build the Shortcut.
+    const fields = new Map<string, FormDataEntryValue>();
     if (type.includes("multipart/form-data") || type.includes("application/x-www-form-urlencoded")) {
-      const form = await request.formData();
-      rawUrl = String(form.get("url") ?? "");
-      note = String(form.get("note") ?? "");
-      const file = form.get("image");
-      if (file instanceof File && file.size > 0) image = file;
+      for (const [key, value] of (await request.formData()).entries()) {
+        const name = FIELD_ALIASES[key.trim().toLowerCase()];
+        if (name && !fields.has(name)) fields.set(name, value);
+      }
     } else {
-      const body = await request.json();
-      rawUrl = String(body.url ?? "");
-      note = String(body.note ?? "");
+      for (const [key, value] of Object.entries(await request.json())) {
+        const name = FIELD_ALIASES[key.trim().toLowerCase()];
+        if (name && !fields.has(name) && value != null) fields.set(name, String(value));
+      }
     }
+    const text = (v: FormDataEntryValue | undefined) => (typeof v === "string" ? v : "");
+    rawUrl = text(fields.get("url"));
+    note = text(fields.get("note"));
+    const file = fields.get("image");
+    if (file instanceof File && file.size > 0) image = file;
   } catch {
     return Response.json({ error: "Couldn't read the request" }, { status: 400 });
   }
@@ -70,5 +89,10 @@ export async function POST(request: Request) {
   }
 
   await startProcessing(item.id);
-  return Response.json({ id: item.id, message: "Saved to mymind" }, { status: 201 });
+  // Spelled out so the Shortcut's notification shows what actually arrived.
+  const got = (present: boolean) => (present ? "✓" : "–");
+  return Response.json(
+    { id: item.id, message: `Saved to mymind: link ${got(Boolean(url))}, note ${got(Boolean(note))}, picture ${got(Boolean(image))}` },
+    { status: 201 },
+  );
 }
