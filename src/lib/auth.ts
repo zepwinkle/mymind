@@ -15,6 +15,15 @@ async function hmac(key: string, message: string): Promise<string> {
   return Array.from(new Uint8Array(sig), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+// Values pasted into a hosting dashboard often pick up stray spaces or line breaks.
+function env(name: "APP_PASSWORD" | "SAVE_TOKEN"): string | undefined {
+  return process.env[name]?.trim() || undefined;
+}
+
+export function passwordConfigured(): boolean {
+  return Boolean(env("APP_PASSWORD"));
+}
+
 function safeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   let diff = 0;
@@ -24,27 +33,27 @@ function safeEqual(a: string, b: string): boolean {
 
 /** The cookie value for a logged-in browser. Changing APP_PASSWORD logs every browser out. */
 export async function sessionValue(): Promise<string> {
-  const password = process.env.APP_PASSWORD;
+  const password = env("APP_PASSWORD");
   if (!password) throw new Error("APP_PASSWORD must be set (see .env.example).");
   return hmac(password, "mymind-session-v1");
 }
 
 export async function isValidSession(cookie: string | undefined): Promise<boolean> {
-  if (!cookie || !process.env.APP_PASSWORD) return false;
+  if (!cookie || !env("APP_PASSWORD")) return false;
   return safeEqual(cookie, await sessionValue());
 }
 
 export async function isValidPassword(password: string): Promise<boolean> {
-  const expected = process.env.APP_PASSWORD;
+  const expected = env("APP_PASSWORD");
   if (!expected) return false;
   // Compare digests so the comparison length doesn't depend on the input.
-  return safeEqual(await hmac("pw", password), await hmac("pw", expected));
+  return safeEqual(await hmac("pw", password.trim()), await hmac("pw", expected));
 }
 
 /** True when a request carries either the browser session cookie or the Shortcut's token. */
 export async function isAuthorized(request: Request): Promise<boolean> {
   const bearer = request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
-  const token = process.env.SAVE_TOKEN;
+  const token = env("SAVE_TOKEN");
   if (bearer && token && token.length >= 16) {
     if (safeEqual(await hmac("tok", bearer), await hmac("tok", token))) return true;
   }

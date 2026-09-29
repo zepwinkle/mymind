@@ -1,6 +1,12 @@
-import { SESSION_COOKIE, isValidPassword, sessionValue } from "@/lib/auth";
+import { SESSION_COOKIE, isValidPassword, passwordConfigured, sessionValue } from "@/lib/auth";
 
 export async function POST(request: Request) {
+  if (!passwordConfigured()) {
+    return Response.json(
+      { error: "This app has no password set yet. Add APP_PASSWORD in Netlify, then redeploy." },
+      { status: 503 },
+    );
+  }
   const form = await request.formData().catch(() => undefined);
   const password = String(form?.get("password") ?? "");
   if (!(await isValidPassword(password))) {

@@ -16,7 +16,8 @@ export default function LoginPage() {
       const next = new URLSearchParams(window.location.search).get("next");
       window.location.href = next?.startsWith("/") && !next.startsWith("//") ? next : "/";
     } else {
-      setError("That password didn't work.");
+      const data = await res.json().catch(() => ({}));
+      setError(res.status === 503 && data.error ? data.error : "That password didn't work.");
       setBusy(false);
     }
   }
