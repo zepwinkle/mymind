@@ -2,8 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { api, shrinkImage } from "./client-utils";
-import { Modal, buttonClass, inputClass } from "./Modal";
+import { api, imageFromPasteEvent, readClipboard, shrinkImage } from "./client-utils";
+import { extractUrl } from "@/lib/link-preview";
+import { Modal, buttonClass, ghostButtonClass, inputClass } from "./Modal";
 
 export function AddButton() {
   const [open, setOpen] = useState(false);
@@ -32,6 +33,30 @@ function AddDialog({ onClose }: { onClose: () => void }) {
     setPreview(f ? URL.createObjectURL(f) : null);
   }
 
+  async function pasteFromClipboard() {
+    setError(null);
+    try {
+      const { image, text } = await readClipboard();
+      if (image) pickFile(image);
+      if (text) {
+        const link = extractUrl(text);
+        if (link) setUrl(link);
+        else if (!image) setNote((n) => (n ? `${n}\n${text}` : text));
+      }
+      if (!image && !text) setError("Your clipboard is empty. Copy a link or picture first.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  function onPaste(e: React.ClipboardEvent) {
+    const image = imageFromPasteEvent(e);
+    if (image) {
+      e.preventDefault();
+      pickFile(image);
+    }
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -53,7 +78,10 @@ function AddDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal title="Save something" onClose={onClose}>
-      <form onSubmit={submit} className="space-y-3">
+      <form onSubmit={submit} onPaste={onPaste} className="space-y-3">
+        <button type="button" onClick={pasteFromClipboard} className={`${ghostButtonClass} w-full`}>
+          📋 Paste from clipboard
+        </button>
         <input
           className={inputClass}
           type="text"
