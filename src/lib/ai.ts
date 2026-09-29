@@ -8,6 +8,29 @@ const MODEL = process.env.CLAUDE_MODEL || "claude-opus-5-5";
 // Claude accepts these image types, up to 5 MB each once base64-encoded.
 const AI_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"] as const;
 const MAX_AI_IMAGE_BYTES = 3_700_000;
+// Images are shrunk to this many pixels on the long edge before tagging. Plenty to
+// recognise what's in them, and each one costs a fraction of a full-size image.
+const AI_IMAGE_MAX_SIDE = 1024;
+
+type AiImage = { data: string; mediaType: (typeof AI_IMAGE_TYPES)[number] };
+
+/** Shrinks an image for the AI (JPEG, max 1024px). Falls back to the original if resizing isn't possible. */
+async function prepareImage(image: { bytes: Uint8Array; contentType: string }): Promise<AiImage | undefined> {
+  try {
+    const { default: sharp } = await import("sharp");
+    const out = await sharp(Buffer.from(image.bytes))
+      .rotate()
+      .resize({ width: AI_IMAGE_MAX_SIDE, height: AI_IMAGE_MAX_SIDE, fit: "inside", withoutEnlargement: true })
+      .jpeg({ quality: 80 })
+      .toBuffer();
+    return { data: out.toString("base64"), mediaType: "image/jpeg" };
+  } catch {
+    if (!(AI_IMAGE_TYPES as readonly string[]).includes(image.contentType) || image.bytes.byteLength > MAX_AI_IMAGE_BYTES) {
+      return undefined;
+    }
+    return { data: Buffer.from(image.bytes).toString("base64"), mediaType: image.contentType as AiImage["mediaType"] };
+  }
+}
 
 const TagResult = z.object({
   title: z.string().describe("A short, specific title, max ~8 words, e.g. 'Crispy chilli oil noodles'"),
@@ -65,22 +88,28 @@ export function normalizeTags(tags: string[]): string[] {
 }
 
 export async function tagItem(input: TagInput): Promise<TagOutput> {
+  const images = (await Promise.all((input.images ?? []).map(prepareImage))).filter((i): i is AiImage => Boolean(i));
+  // Some AI plans cap how big one request can be. If a request is too big, try again
+  // with just the cover image, then with the text alone, rather than failing.
+  const attempts = [...new Set([images.length, Math.min(images.length, 1), 0])];
+  for (const [i, count] of attempts.entries()) {
+    try {
+      return await tagWithImages(input, images.slice(0, count));
+    } catch (err) {
+      const last = i === attempts.length - 1;
+      if (last || !(err instanceof Anthropic.BadRequestError)) throw err;
+    }
+  }
+  throw new Error("unreachable");
+}
+
+async function tagWithImages(input: TagInput, images: AiImage[]): Promise<TagOutput> {
   client ??= new Anthropic();
 
-  const content: Anthropic.Beta.BetaContentBlockParam[] = [];
-  for (const image of input.images ?? []) {
-    if (!(AI_IMAGE_TYPES as readonly string[]).includes(image.contentType) || image.bytes.byteLength > MAX_AI_IMAGE_BYTES) {
-      continue;
-    }
-    content.push({
-      type: "image",
-      source: {
-        type: "base64",
-        media_type: image.contentType as (typeof AI_IMAGE_TYPES)[number],
-        data: Buffer.from(image.bytes).toString("base64"),
-      },
-    });
-  }
+  const content: Anthropic.Beta.BetaContentBlockParam[] = images.map((image) => ({
+    type: "image",
+    source: { type: "base64", media_type: image.mediaType, data: image.data },
+  }));
 
   const lines = [
     `Saved from: ${input.source}`,

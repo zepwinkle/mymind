@@ -3,3 +3,7 @@
 [build]
   command = "npm run build"
   publish = ".next"
+
+# The background function shrinks images with sharp, which ships a native binary.
+[functions]
+  external_node_modules = ["sharp"]
