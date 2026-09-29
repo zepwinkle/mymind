@@ -61,7 +61,6 @@ function AddDialog({ onClose }: { onClose: () => void }) {
           placeholder="Paste a TikTok, Pinterest, Instagram or web link"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          autoFocus
         />
         <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-border p-3 text-sm text-muted hover:border-accent">
           {preview ? (

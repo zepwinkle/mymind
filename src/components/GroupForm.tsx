@@ -87,7 +87,6 @@ function GroupDialog({ group, onClose }: { group?: Collection; onClose: () => vo
           placeholder="Name, e.g. Dinner ideas"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          autoFocus
         />
 
         {!group && (
