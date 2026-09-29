@@ -26,6 +26,10 @@ export async function downloadMedia(key: string): Promise<{ bytes: Uint8Array; c
   return { bytes: new Uint8Array(entry.data), contentType };
 }
 
+export async function deleteMedia(key: string): Promise<void> {
+  await media().delete(key);
+}
+
 export async function deleteMediaFolder(itemId: string): Promise<void> {
   const store = media();
   const { blobs } = await store.list({ prefix: `${itemId}/` });

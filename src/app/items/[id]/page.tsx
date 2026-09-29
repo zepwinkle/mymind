@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { Header } from "@/components/Header";
 import { ItemEditor } from "@/components/ItemEditor";
+import { ReplaceImageButton } from "@/components/ReplaceImageButton";
 import { collectionIdsForItem, getItem, listCollections } from "@/lib/items";
 import { KIND_LABELS } from "@/lib/types";
 
@@ -47,6 +48,7 @@ export default async function ItemPage({ params }: PageProps<"/items/[id]">) {
               {item.note || item.caption || item.url}
             </div>
           )}
+          <ReplaceImageButton itemId={item.id} hasImage={Boolean(item.thumbnail_url)} />
         </div>
 
         <div className="space-y-6">
