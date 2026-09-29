@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { ItemGrid } from "@/components/ItemGrid";
 import { NewGroupButton } from "@/components/GroupForm";
+import { restartStale } from "@/lib/background";
 import { completedCount, kindCounts, listCollections, listItems } from "@/lib/items";
 import { KINDS, KIND_LABELS } from "@/lib/types";
 
@@ -24,6 +25,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
     kindCounts(),
     completedCount(),
   ]);
+  await restartStale(items);
 
   const link = (next: Record<string, string | undefined>) => {
     const sp = new URLSearchParams();

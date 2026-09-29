@@ -1,4 +1,3 @@
-import "server-only";
 import { getDatabase, type DatabaseConnection } from "@netlify/database";
 
 let connection: DatabaseConnection | undefined;

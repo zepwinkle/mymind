@@ -1,6 +1,5 @@
-import { after } from "next/server";
 import { isAuthorized, unauthorized } from "@/lib/auth";
-import { processItem } from "@/lib/ingest";
+import { startProcessing } from "@/lib/background";
 import { isUuid, updateItem } from "@/lib/items";
 
 export const maxDuration = 60;
@@ -11,6 +10,6 @@ export async function POST(request: Request, ctx: RouteContext<"/api/items/[id]/
   const { id } = await ctx.params;
   if (!isUuid(id)) return Response.json({ error: "Not found" }, { status: 404 });
   await updateItem(id, { status: "processing", error: null });
-  after(() => processItem(id, { refetch: true }));
+  await startProcessing(id, { refetch: true });
   return Response.json({ ok: true });
 }

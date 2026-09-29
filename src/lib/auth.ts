@@ -65,6 +65,19 @@ export async function isAuthorized(request: Request): Promise<boolean> {
   return isValidSession(cookie ? decodeURIComponent(cookie) : undefined);
 }
 
+/** Secret the app uses to call its own background job (derived from APP_PASSWORD). */
+export async function internalToken(): Promise<string> {
+  const password = env("APP_PASSWORD");
+  if (!password) throw new Error("APP_PASSWORD must be set (see .env.example).");
+  return hmac(password, "mymind-internal-v1");
+}
+
+export async function isInternalRequest(request: Request): Promise<boolean> {
+  const given = request.headers.get("x-mymind-token");
+  if (!given || !env("APP_PASSWORD")) return false;
+  return safeEqual(await hmac("tok", given), await hmac("tok", await internalToken()));
+}
+
 export function unauthorized(): Response {
   return Response.json({ error: "Not signed in" }, { status: 401 });
 }

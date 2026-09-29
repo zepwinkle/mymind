@@ -1,4 +1,3 @@
-import "server-only";
 import { query, setClause } from "./db";
 import { withThumbnails } from "./storage";
 import type { Collection, Item, ItemView, SmartFilter } from "./types";

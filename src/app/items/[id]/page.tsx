@@ -4,6 +4,7 @@ import { AutoRefresh } from "@/components/AutoRefresh";
 import { Header } from "@/components/Header";
 import { ItemEditor } from "@/components/ItemEditor";
 import { ReplaceImageButton } from "@/components/ReplaceImageButton";
+import { restartStale } from "@/lib/background";
 import { collectionIdsForItem, getItem, listCollections } from "@/lib/items";
 import { KIND_LABELS } from "@/lib/types";
 
@@ -18,6 +19,7 @@ export default async function ItemPage({ params }: PageProps<"/items/[id]">) {
   const { id } = await params;
   const [item, collections, memberOf] = await Promise.all([getItem(id), listCollections(), collectionIdsForItem(id)]);
   if (!item) notFound();
+  await restartStale([item]);
 
   const manualGroups = collections.filter((c) => c.type === "manual");
 

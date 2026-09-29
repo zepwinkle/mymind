@@ -1,12 +1,11 @@
-import { after } from "next/server";
 import { isAuthorized, unauthorized } from "@/lib/auth";
-import { processItem } from "@/lib/ingest";
+import { startProcessing } from "@/lib/background";
 import { detectSource, extractUrl } from "@/lib/link-preview";
 import { uploadMedia } from "@/lib/storage";
 import { query } from "@/lib/db";
 import { updateItem } from "@/lib/items";
 
-// Background scraping + AI tagging runs after the response, within this limit.
+// Only used when the background function isn't available (local development).
 export const maxDuration = 60;
 
 // Netlify functions accept request bodies up to about 4.5 MB of binary data.
@@ -70,6 +69,6 @@ export async function POST(request: Request) {
     }
   }
 
-  after(() => processItem(item.id));
+  await startProcessing(item.id);
   return Response.json({ id: item.id, message: "Saved to mymind" }, { status: 201 });
 }

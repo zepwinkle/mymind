@@ -1,4 +1,3 @@
-import "server-only";
 import { aiEnabled, tagItem } from "./ai";
 import { downloadImage, fetchLinkPreview } from "./fetch-preview";
 import { downloadMedia, uploadMedia } from "./storage";
@@ -26,7 +25,8 @@ export async function processItem(id: string, { refetch = false } = {}): Promise
   const problems: string[] = [];
 
   try {
-    if (item.url && (refetch || (!item.caption && !item.thumbnail_path))) {
+    // Read the link even when a screenshot came with it: the caption and author still matter.
+    if (item.url && (refetch || !item.caption)) {
       const preview = await fetchLinkPreview(item.url);
       patch.url = preview.url;
       patch.source = preview.source;
