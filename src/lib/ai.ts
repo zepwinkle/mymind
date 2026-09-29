@@ -40,6 +40,9 @@ const TagResult = z.object({
   ingredients: z.array(z.string()).describe("Recipe ingredients if this is a recipe and they are visible or stated; otherwise empty"),
   steps: z.array(z.string()).describe("Short recipe or how-to steps if they are visible or stated; otherwise empty"),
   extracted_text: z.string().describe("Meaningful text visible in the image (e.g. on-screen captions); empty if none"),
+  owner_tags: z
+    .array(z.string())
+    .describe("Which of the owner's own tags apply to this item, copied exactly from their list; empty if none apply or there is no list"),
 });
 
 const SYSTEM = `You organise a personal visual bookmarking library (like the mymind app).
@@ -109,16 +112,28 @@ export async function tagItem(input: TagInput): Promise<TagOutput> {
   throw new Error("unreachable");
 }
 
+/**
+ * The owner's tags the AI picked (only exact names from their list count), followed by the
+ * AI's own tags. Owner tags come first so the tag limit never drops them.
+ */
+export function combineTags(picked: string[], own: string[], myTags: { name: string }[]): string[] {
+  const byName = new Map(myTags.map((t) => [t.name.toLowerCase().trim(), t.name]));
+  const clean = (t: string) => t.toLowerCase().replace(/^#+/, "").replace(/\s+/g, " ").trim();
+  const ownerTags = [...picked, ...own].map((t) => byName.get(clean(t))).filter((t): t is string => Boolean(t));
+  return normalizeTags([...ownerTags, ...own], [...byName.values()]);
+}
+
 /** Tells the AI about the owner's own tags, so it uses them (spelled exactly) when they fit. */
 function myTagsInstructions(myTags: TagInput["myTags"]): string {
   if (!myTags?.length) return "";
   const list = myTags.map((t) => `- "${t.name}"${t.description ? `: ${t.description}` : ""}`).join("\n");
   return `
 
-The owner has their own tags, listed below with what each one means to them. Include each one,
-spelled exactly as written, whenever it applies, in addition to your own tags. These are usually
-not written in the caption: work them out from the clues, such as the ingredients, cooking method,
-portion size, what is shown in the pictures, the season or the setting. Include a tag when a
+The owner has their own tags, listed below with what each one means to them. Go through the list
+one by one and put every tag that applies into "owner_tags", spelled exactly as written. These are
+usually not written in the caption: work them out from the clues, such as the ingredients, cooking
+method, portion size, what is shown in the pictures, the season or the setting. For example, a
+spring salad recipe gets "spring" (not a variation like "spring cooking"). Include a tag when a
 sensible person looking at the item would agree it fits; leave it out if it would be a stretch.
 ${list}`;
 }
@@ -169,7 +184,7 @@ async function tagWithImages(input: TagInput, images: AiImage[]): Promise<TagOut
     title: result.title.trim(),
     kind: (KINDS as readonly string[]).includes(kind) ? (kind as Kind) : "other",
     summary: result.summary.trim(),
-    tags: normalizeTags(result.tags, (input.myTags ?? []).map((t) => t.name)),
+    tags: combineTags(result.owner_tags, result.tags, input.myTags ?? []),
     details,
   };
 }

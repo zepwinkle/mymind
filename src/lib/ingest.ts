@@ -76,6 +76,13 @@ export async function processItem(id: string, { refetch = false } = {}): Promise
       const images = (await Promise.all(keys.slice(0, MAX_AI_IMAGES).map(downloadMedia))).filter(
         (img): img is NonNullable<typeof img> => Boolean(img),
       );
+      let myTags: Awaited<ReturnType<typeof listMyTags>> = [];
+      try {
+        myTags = await listMyTags();
+      } catch (err) {
+        console.error("Couldn't load My tags", err);
+        problems.push("Couldn't load your tags this time, so only the AI's own tags were added. Tap Re-run AI to try again.");
+      }
       const tagged = await tagItem({
         source: current.source,
         url: current.url,
@@ -83,7 +90,7 @@ export async function processItem(id: string, { refetch = false } = {}): Promise
         author: current.author,
         note: current.note,
         images,
-        myTags: await listMyTags().catch(() => []),
+        myTags,
       });
       Object.assign(patch, tagged);
     }
