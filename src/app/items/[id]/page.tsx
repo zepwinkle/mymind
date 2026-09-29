@@ -99,7 +99,7 @@ export default async function ItemPage({ params }: PageProps<"/items/[id]">) {
 
           <ItemEditor
             key={item.updated_at}
-            item={{ id: item.id, title: item.title ?? "", note: item.note ?? "", tags: item.tags, kind: item.kind }}
+            item={{ id: item.id, title: item.title ?? "", note: item.note ?? "", tags: item.tags, kind: item.kind, completedAt: item.completed_at }}
             groups={manualGroups.map((g) => ({ id: g.id, name: g.name, member: memberOf.has(g.id) }))}
           />
 

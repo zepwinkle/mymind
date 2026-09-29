@@ -56,6 +56,7 @@ export interface Item {
   tags: string[];
   details: ItemDetails;
   note: string | null;
+  completed_at: string | null;
 }
 
 /** An item plus a short-lived URL for its thumbnail. */
@@ -69,6 +70,8 @@ export interface SmartFilter {
   kinds?: string[];
   tags?: string[];
   query?: string;
+  /** true = only completed items, false = only ones not completed yet. */
+  completed?: boolean;
 }
 
 export interface Collection {

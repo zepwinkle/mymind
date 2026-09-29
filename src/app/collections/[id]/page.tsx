@@ -11,6 +11,8 @@ function describe(filter: SmartFilter): string {
   if (filter.kinds?.length) parts.push(filter.kinds.map((k) => KIND_LABELS[k as Kind] ?? k).join(" or "));
   if (filter.tags?.length) parts.push(`tagged ${filter.tags.map((t) => `#${t}`).join(" or ")}`);
   if (filter.query) parts.push(`mentioning “${filter.query}”`);
+  if (filter.completed === true) parts.push("completed");
+  if (filter.completed === false) parts.push("not completed yet");
   return parts.join(", ");
 }
 

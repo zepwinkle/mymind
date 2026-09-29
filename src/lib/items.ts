@@ -10,17 +10,18 @@ export function toPrefixQuery(q: string): string | undefined {
 }
 
 const ITEM_COLUMNS = `i.id, i.created_at, i.updated_at, i.url, i.source, i.status, i.error, i.caption, i.author,
-  i.thumbnail_path, i.media_paths, i.title, i.kind, i.summary, i.tags, i.details, i.note`;
+  i.thumbnail_path, i.media_paths, i.title, i.kind, i.summary, i.tags, i.details, i.note, i.completed_at`;
 
 export interface ItemQuery {
   q?: string;
   kind?: string;
   tag?: string;
+  completed?: boolean;
   collection?: Collection;
   limit?: number;
 }
 
-export async function listItems({ q, kind, tag, collection, limit = 300 }: ItemQuery): Promise<ItemView[]> {
+export async function listItems({ q, kind, tag, completed, collection, limit = 300 }: ItemQuery): Promise<ItemView[]> {
   const where: string[] = [];
   const params: unknown[] = [];
   const add = (sql: (n: string) => string, value: unknown) => {
@@ -37,7 +38,9 @@ export async function listItems({ q, kind, tag, collection, limit = 300 }: ItemQ
     if (f.tags?.length) add((n) => `i.tags && ${n}::text[]`, f.tags);
     const fq = f.query && toPrefixQuery(f.query);
     if (fq) add((n) => `i.search @@ to_tsquery('english', ${n})`, fq);
+    if (typeof f.completed === "boolean") where.push(f.completed ? "i.completed_at is not null" : "i.completed_at is null");
   }
+  if (completed !== undefined) where.push(completed ? "i.completed_at is not null" : "i.completed_at is null");
   const tsq = q && toPrefixQuery(q);
   if (tsq) add((n) => `i.search @@ to_tsquery('english', ${n})`, tsq);
   if (kind) add((n) => `i.kind = ${n}`, kind);
@@ -63,6 +66,11 @@ export async function getItem(id: string): Promise<ItemView | undefined> {
 export async function updateItem(id: string, patch: Partial<Item>): Promise<void> {
   const { sql, params } = setClause(patch, 2);
   if (sql) await query(`update items set ${sql} where id = $1`, [id, ...params]);
+}
+
+export async function completedCount(): Promise<number> {
+  const [row] = await query<{ count: number }>(`select count(*)::int as count from items where completed_at is not null`);
+  return row?.count ?? 0;
 }
 
 /** How many items there are of each kind, for the filter chips. */

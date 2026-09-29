@@ -8,7 +8,7 @@ import { api } from "./client-utils";
 import { buttonClass, ghostButtonClass, inputClass } from "./Modal";
 
 interface Props {
-  item: { id: string; title: string; note: string; tags: string[]; kind: Kind | null };
+  item: { id: string; title: string; note: string; tags: string[]; kind: Kind | null; completedAt: string | null };
   groups: { id: string; name: string; member: boolean }[];
 }
 
@@ -19,6 +19,7 @@ export function ItemEditor({ item, groups }: Props) {
   const [tags, setTags] = useState(item.tags.join(", "));
   const [kind, setKind] = useState<string>(item.kind ?? "");
   const [membership, setMembership] = useState(groups);
+  const [completedAt, setCompletedAt] = useState(item.completedAt);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,6 +53,19 @@ export function ItemEditor({ item, groups }: Props) {
       setMembership((gs) => gs.map((g) => (g.id === groupId ? { ...g, member: !member } : g)));
     });
 
+  const toggleCompleted = () =>
+    run("completed", async () => {
+      const next = !completedAt;
+      setCompletedAt(next ? new Date().toISOString() : null);
+      try {
+        await api(`/api/items/${item.id}`, { method: "PATCH", json: { completed: next } });
+      } catch (err) {
+        setCompletedAt(item.completedAt);
+        throw err;
+      }
+      router.refresh();
+    });
+
   const reprocess = () =>
     run("reprocess", async () => {
       if (dirty) await save();
@@ -69,6 +83,33 @@ export function ItemEditor({ item, groups }: Props) {
 
   return (
     <div className="space-y-5">
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={Boolean(completedAt)}
+        onClick={toggleCompleted}
+        disabled={busy === "completed"}
+        className={`flex w-full items-center gap-3 rounded-2xl p-3 text-left ring-1 transition ${
+          completedAt ? "bg-emerald-50 ring-emerald-600 dark:bg-emerald-950" : "bg-card ring-border hover:ring-fg"
+        }`}
+      >
+        <span
+          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border-2 text-sm font-bold ${
+            completedAt ? "border-emerald-600 bg-emerald-600 text-white" : "border-muted text-transparent"
+          }`}
+        >
+          ✓
+        </span>
+        <span>
+          <span className="block font-medium">Completed</span>
+          <span className="block text-sm text-muted">
+            {completedAt
+              ? `Ticked off ${new Date(completedAt).toLocaleDateString("en", { day: "numeric", month: "short", year: "numeric" })}`
+              : "Read it, made it, been there? Tick it off."}
+          </span>
+        </span>
+      </button>
+
       <label className="block">
         <span className="mb-1 block text-sm text-muted">Title</span>
         <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} />

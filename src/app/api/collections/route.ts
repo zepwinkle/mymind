@@ -7,7 +7,7 @@ export async function POST(request: Request) {
   const input = parseCollectionInput(await request.json().catch(() => ({})));
   if (!input.name) return Response.json({ error: "Give the group a name" }, { status: 400 });
   if (input.type === "smart" && !Object.keys(input.filter).length) {
-    return Response.json({ error: "Pick at least one category, tag or word to filter by" }, { status: 400 });
+    return Response.json({ error: "Pick at least one thing to filter by" }, { status: 400 });
   }
   const [group] = await query<{ id: string }>(
     `insert into collections (name, type, filter) values ($1, $2, $3::jsonb) returning id`,

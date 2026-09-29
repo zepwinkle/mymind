@@ -14,6 +14,7 @@ export function parseCollectionInput(body: Record<string, unknown>) {
     if (kinds.length) filter.kinds = kinds.map(String);
     if (tags.length) filter.tags = tags;
     if (query) filter.query = query;
+    if (typeof raw.completed === "boolean") filter.completed = raw.completed;
   }
   return { name, type, filter } as const;
 }

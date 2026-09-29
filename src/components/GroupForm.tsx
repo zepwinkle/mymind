@@ -47,6 +47,9 @@ function GroupDialog({ group, onClose }: { group?: Collection; onClose: () => vo
   const [kinds, setKinds] = useState<string[]>(group?.filter.kinds ?? []);
   const [tags, setTags] = useState((group?.filter.tags ?? []).join(", "));
   const [query, setQuery] = useState(group?.filter.query ?? "");
+  const [completed, setCompleted] = useState<"any" | "yes" | "no">(
+    group?.filter.completed === true ? "yes" : group?.filter.completed === false ? "no" : "any",
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,7 +64,12 @@ function GroupDialog({ group, onClose }: { group?: Collection; onClose: () => vo
     const body = {
       name,
       type,
-      filter: { kinds, tags: tags.split(",").map((t) => t.trim()).filter(Boolean), query },
+      filter: {
+        kinds,
+        tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
+        query,
+        ...(completed !== "any" ? { completed: completed === "yes" } : {}),
+      },
     };
     try {
       if (group) {
@@ -137,6 +145,27 @@ function GroupDialog({ group, onClose }: { group?: Collection; onClose: () => vo
               <span className="mb-1 block text-muted">…and mentioning these words</span>
               <input className={inputClass} placeholder="e.g. pasta" value={query} onChange={(e) => setQuery(e.target.value)} />
             </label>
+            <div className="text-sm">
+              <span className="mb-1 block text-muted">…that are</span>
+              <div className="grid grid-cols-3 gap-1.5">
+                {(
+                  [
+                    ["any", "Either"],
+                    ["no", "Not completed"],
+                    ["yes", "Completed"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    type="button"
+                    key={value}
+                    onClick={() => setCompleted(value)}
+                    className={`rounded-full px-2 py-1.5 ${completed === value ? "bg-fg text-bg" : "bg-chip"}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 

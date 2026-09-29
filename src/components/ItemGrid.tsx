@@ -39,6 +39,15 @@ function ItemCard({ item }: { item: ItemView }) {
             <span className="line-clamp-6">{item.note || item.caption || title}</span>
           </div>
         )}
+        {item.completed_at && (
+          <span
+            className="absolute bottom-2 left-2 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-sm font-bold text-white shadow ring-2 ring-white/80"
+            title="Completed"
+            aria-label="Completed"
+          >
+            ✓
+          </span>
+        )}
         {item.image_urls.length > 1 && (
           <span className="absolute right-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-xs text-white backdrop-blur">
             ▦ {item.image_urls.length}

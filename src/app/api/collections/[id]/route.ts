@@ -13,7 +13,7 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/collection
   const input = parseCollectionInput({ ...body, type: existing.type });
   if (!input.name) return Response.json({ error: "Give the group a name" }, { status: 400 });
   if (input.type === "smart" && !Object.keys(input.filter).length) {
-    return Response.json({ error: "Pick at least one category, tag or word to filter by" }, { status: 400 });
+    return Response.json({ error: "Pick at least one thing to filter by" }, { status: 400 });
   }
   await query(`update collections set name = $2, filter = $3::jsonb where id = $1`, [id, input.name, JSON.stringify(input.filter)]);
   return Response.json({ ok: true });
