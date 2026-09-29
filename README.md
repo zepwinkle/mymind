@@ -54,8 +54,13 @@ You need a **Netlify** account and an **Anthropic Console** account (for the AI 
 > an older plan. Switch plans under Team settings → Billing.
 
 ### Costs
-Personal use fits in Netlify's free credits. Tagging uses Claude Opus 5.5 by default, roughly 1–2¢ per
-saved item. To make it cheaper, add `CLAUDE_MODEL` = `claude-sonnet-5-5` (about half the price).
+Everything runs on Netlify credits. On the free plan the monthly allowance is shared by:
+- **Production deploys**: 15 credits each, the biggest cost. Batch changes into fewer deploys.
+- **AI tagging**: through Netlify's AI Gateway, so no Anthropic key is needed. The default
+  model is Claude Opus 5.5 (about 2.5–3 credits per save). On the free plan, set
+  `CLAUDE_MODEL` = `claude-sonnet-5-5` to roughly halve that; tag quality stays very good.
+  To pay Anthropic directly instead of using Netlify credits, set your own `ANTHROPIC_API_KEY`.
+- Hosting, database and bandwidth, which are small for personal use.
 
 ## Local development
 
