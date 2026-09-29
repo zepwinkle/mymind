@@ -47,6 +47,7 @@ function GroupDialog({ group, onClose }: { group?: Collection; onClose: () => vo
   const [kinds, setKinds] = useState<string[]>(group?.filter.kinds ?? []);
   const [tags, setTags] = useState((group?.filter.tags ?? []).join(", "));
   const [query, setQuery] = useState(group?.filter.query ?? "");
+  const [match, setMatch] = useState<"any" | "all">(group?.filter.match ?? "any");
   const [completed, setCompleted] = useState<"any" | "yes" | "no">(
     group?.filter.completed === true ? "yes" : group?.filter.completed === false ? "no" : "any",
   );
@@ -69,6 +70,7 @@ function GroupDialog({ group, onClose }: { group?: Collection; onClose: () => vo
         tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
         query,
         ...(completed !== "any" ? { completed: completed === "yes" } : {}),
+        match,
       },
     };
     try {
@@ -120,8 +122,28 @@ function GroupDialog({ group, onClose }: { group?: Collection; onClose: () => vo
 
         {type === "smart" && (
           <div className="space-y-3">
+            <div className="text-sm">
+              <span className="mb-1 block text-muted">Show items that match</span>
+              <div className="grid grid-cols-2 gap-1.5">
+                {(
+                  [
+                    ["any", "Any of these"],
+                    ["all", "All of these"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    type="button"
+                    key={value}
+                    onClick={() => setMatch(value)}
+                    className={`rounded-full px-2 py-1.5 ${match === value ? "bg-fg text-bg" : "bg-chip"}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div>
-              <p className="mb-2 text-sm text-muted">Include items in any of these categories</p>
+              <p className="mb-2 text-sm text-muted">Categories</p>
               <div className="flex flex-wrap gap-1.5">
                 {KINDS.map((kind) => (
                   <button
@@ -138,15 +160,17 @@ function GroupDialog({ group, onClose }: { group?: Collection; onClose: () => vo
               </div>
             </div>
             <label className="block text-sm">
-              <span className="mb-1 block text-muted">…and with any of these tags (comma separated)</span>
+              <span className="mb-1 block text-muted">{match === "any" ? "…or" : "…and"} tagged (comma separated)</span>
               <input className={inputClass} placeholder="e.g. chicken, quick dinner" value={tags} onChange={(e) => setTags(e.target.value)} />
             </label>
             <label className="block text-sm">
-              <span className="mb-1 block text-muted">…and mentioning these words</span>
-              <input className={inputClass} placeholder="e.g. pasta" value={query} onChange={(e) => setQuery(e.target.value)} />
+              <span className="mb-1 block text-muted">
+                {match === "any" ? "…or" : "…and"} mentioning (anywhere: caption, notes, tags, text in the picture)
+              </span>
+              <input className={inputClass} placeholder="e.g. sew, sewing, pattern" value={query} onChange={(e) => setQuery(e.target.value)} />
             </label>
             <div className="text-sm">
-              <span className="mb-1 block text-muted">…that are</span>
+              <span className="mb-1 block text-muted">Only show items that are</span>
               <div className="grid grid-cols-3 gap-1.5">
                 {(
                   [

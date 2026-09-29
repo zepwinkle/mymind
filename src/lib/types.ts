@@ -72,6 +72,8 @@ export interface SmartFilter {
   query?: string;
   /** true = only completed items, false = only ones not completed yet. */
   completed?: boolean;
+  /** Whether items must match any (default) or all of the categories / tags / words. */
+  match?: "any" | "all";
 }
 
 export interface Collection {

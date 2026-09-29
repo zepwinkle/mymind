@@ -10,10 +10,11 @@ function describe(filter: SmartFilter): string {
   const parts: string[] = [];
   if (filter.kinds?.length) parts.push(filter.kinds.map((k) => KIND_LABELS[k as Kind] ?? k).join(" or "));
   if (filter.tags?.length) parts.push(`tagged ${filter.tags.map((t) => `#${t}`).join(" or ")}`);
-  if (filter.query) parts.push(`mentioning “${filter.query}”`);
-  if (filter.completed === true) parts.push("completed");
-  if (filter.completed === false) parts.push("not completed yet");
-  return parts.join(", ");
+  if (filter.query) parts.push(`mentioning ${filter.query.split(",").map((w) => `“${w.trim()}”`).filter((w) => w !== "“”").join(" or ")}`);
+  let text = parts.join(filter.match === "all" ? ", " : " or ");
+  if (filter.completed === true) text += `${text ? ", " : ""}completed`;
+  if (filter.completed === false) text += `${text ? ", " : ""}not completed yet`;
+  return text;
 }
 
 export default async function CollectionPage({ params, searchParams }: PageProps<"/collections/[id]">) {

@@ -8,6 +8,15 @@ export function toPrefixQuery(q: string): string | undefined {
   return words?.length ? words.map((w) => `${w}:*`).join(" & ") : undefined;
 }
 
+/**
+ * For group filters: commas separate alternatives, so "sew, sewing machine" finds items
+ * mentioning "sew" OR both "sewing" and "machine".
+ */
+export function toAnyOfQuery(q: string): string | undefined {
+  const parts = q.split(",").map(toPrefixQuery).filter((p): p is string => Boolean(p));
+  return parts.length ? parts.map((p) => `(${p})`).join(" | ") : undefined;
+}
+
 const ITEM_COLUMNS = `i.id, i.created_at, i.updated_at, i.url, i.source, i.status, i.error, i.caption, i.author,
   i.thumbnail_path, i.media_paths, i.title, i.kind, i.summary, i.tags, i.details, i.note, i.completed_at`;
 
@@ -33,10 +42,17 @@ export async function listItems({ q, kind, tag, completed, collection, limit = 3
   }
   if (collection?.type === "smart") {
     const f: SmartFilter = collection.filter ?? {};
-    if (f.kinds?.length) add((n) => `i.kind = any(${n}::text[])`, f.kinds);
-    if (f.tags?.length) add((n) => `i.tags && ${n}::text[]`, f.tags);
-    const fq = f.query && toPrefixQuery(f.query);
-    if (fq) add((n) => `i.search @@ to_tsquery('english', ${n})`, fq);
+    // Categories, tags and words: by default an item needs to match any one of them.
+    const conditions: string[] = [];
+    const param = (value: unknown) => {
+      params.push(value);
+      return `$${params.length}`;
+    };
+    if (f.kinds?.length) conditions.push(`i.kind = any(${param(f.kinds)}::text[])`);
+    if (f.tags?.length) conditions.push(`i.tags && ${param(f.tags)}::text[]`);
+    const fq = f.query && toAnyOfQuery(f.query);
+    if (fq) conditions.push(`i.search @@ to_tsquery('english', ${param(fq)})`);
+    if (conditions.length) where.push(`(${conditions.join(f.match === "all" ? " and " : " or ")})`);
     if (typeof f.completed === "boolean") where.push(f.completed ? "i.completed_at is not null" : "i.completed_at is null");
   }
   if (completed !== undefined) where.push(completed ? "i.completed_at is not null" : "i.completed_at is null");

@@ -1,5 +1,5 @@
 import { isAuthorized, unauthorized } from "@/lib/auth";
-import { parseCollectionInput } from "@/lib/collection-input";
+import { hasFilter, parseCollectionInput } from "@/lib/collection-input";
 import { query } from "@/lib/db";
 import { isUuid } from "@/lib/items";
 
@@ -12,7 +12,7 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/collection
   const body = await request.json().catch(() => ({}));
   const input = parseCollectionInput({ ...body, type: existing.type });
   if (!input.name) return Response.json({ error: "Give the group a name" }, { status: 400 });
-  if (input.type === "smart" && !Object.keys(input.filter).length) {
+  if (input.type === "smart" && !hasFilter(input.filter)) {
     return Response.json({ error: "Pick at least one thing to filter by" }, { status: 400 });
   }
   await query(`update collections set name = $2, filter = $3::jsonb where id = $1`, [id, input.name, JSON.stringify(input.filter)]);
