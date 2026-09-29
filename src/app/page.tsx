@@ -46,6 +46,9 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             </Link>
           ))}
           <NewGroupButton className={`${chip} border border-dashed border-border text-muted hover:text-fg`} />
+          <Link href="/tags" className={`${chip} text-muted hover:text-fg`}>
+            🏷 My tags
+          </Link>
         </section>
 
         {counts.size > 0 && (

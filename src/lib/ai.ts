@@ -62,6 +62,8 @@ export interface TagInput {
   author?: string | null;
   note?: string | null;
   images?: { bytes: Uint8Array; contentType: string }[];
+  /** The owner's own tags, to apply whenever they fit. */
+  myTags?: { name: string; description: string | null }[];
 }
 
 export interface TagOutput {
@@ -78,9 +80,11 @@ export function aiEnabled(): boolean {
   return Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
 }
 
-export function normalizeTags(tags: string[]): string[] {
+export function normalizeTags(tags: string[], keepFirst: string[] = []): string[] {
   const seen = new Set<string>();
-  for (const raw of tags) {
+  // The owner's own tags go first so they're never dropped by the limit below.
+  const ordered = [...tags.filter((t) => keepFirst.includes(t.toLowerCase().trim())), ...tags];
+  for (const raw of ordered) {
     const tag = raw.toLowerCase().replace(/^#+/, "").replace(/\s+/g, " ").trim();
     if (tag && tag.length <= 40) seen.add(tag);
   }
@@ -101,6 +105,18 @@ export async function tagItem(input: TagInput): Promise<TagOutput> {
     }
   }
   throw new Error("unreachable");
+}
+
+/** Tells the AI about the owner's own tags, so it uses them (spelled exactly) when they fit. */
+function myTagsInstructions(myTags: TagInput["myTags"]): string {
+  if (!myTags?.length) return "";
+  const list = myTags.map((t) => `- "${t.name}"${t.description ? `: ${t.description}` : ""}`).join("\n");
+  return `
+
+The owner has their own tags. Include each one, spelled exactly as written, whenever it genuinely
+applies to this item (judge from the image, caption, ingredients and note), in addition to your
+own tags. Leave it out if it doesn't clearly apply.
+${list}`;
 }
 
 async function tagWithImages(input: TagInput, images: AiImage[]): Promise<TagOutput> {
@@ -125,7 +141,7 @@ async function tagWithImages(input: TagInput, images: AiImage[]): Promise<TagOut
   const response = await client.beta.messages.parse({
     model: MODEL,
     max_tokens: 16000,
-    system: SYSTEM,
+    system: SYSTEM + myTagsInstructions(input.myTags),
     messages: [{ role: "user", content }],
     output_config: { effort: "low", format: betaZodOutputFormat(TagResult) },
     // If a safety check declines the request, let the API retry on a suitable fallback model.
@@ -149,7 +165,7 @@ async function tagWithImages(input: TagInput, images: AiImage[]): Promise<TagOut
     title: result.title.trim(),
     kind: (KINDS as readonly string[]).includes(kind) ? (kind as Kind) : "other",
     summary: result.summary.trim(),
-    tags: normalizeTags(result.tags),
+    tags: normalizeTags(result.tags, (input.myTags ?? []).map((t) => t.name)),
     details,
   };
 }

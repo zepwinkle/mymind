@@ -3,6 +3,7 @@ import { downloadImage, fetchLinkPreview } from "./fetch-preview";
 import { downloadMedia, uploadMedia } from "./storage";
 import { query } from "./db";
 import { updateItem } from "./items";
+import { listMyTags } from "./my-tags";
 import type { Item } from "./types";
 
 const MAX_EXTRA_IMAGES = 19;
@@ -82,6 +83,7 @@ export async function processItem(id: string, { refetch = false } = {}): Promise
         author: current.author,
         note: current.note,
         images,
+        myTags: await listMyTags().catch(() => []),
       });
       Object.assign(patch, tagged);
     }
