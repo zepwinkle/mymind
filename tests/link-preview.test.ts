@@ -9,6 +9,8 @@ import {
   previewFromHtml,
   previewFromOembed,
   previewFromTikTokHtml,
+  slidesFromTikTokEmbedHtml,
+  tiktokPostId,
 } from "../src/lib/link-preview.ts";
 
 test("detectSource recognises each platform", () => {
@@ -133,4 +135,34 @@ test("TikTok pages without embedded data return nothing", () => {
     previewFromTikTokHtml("u", '<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__" type="application/json">{not json</script>'),
     {},
   );
+});
+
+test("tiktokPostId reads video and photo links", () => {
+  assert.equal(tiktokPostId("https://www.tiktok.com/@a/photo/7412345678901234567?is_from_webapp=1"), "7412345678901234567");
+  assert.equal(tiktokPostId("https://www.tiktok.com/@a/video/7412345678901234567"), "7412345678901234567");
+  assert.equal(tiktokPostId("https://vm.tiktok.com/ZMabc/"), undefined);
+});
+
+test("carousel slides are read from the TikTok embed page", () => {
+  const state = {
+    source: { data: { "/embed/v2/1": { videoData: { imagePostInfo: { displayImages: [
+      { urlList: ["https://p16/a.jpeg"] },
+      { urlList: ["https://p16/b.jpeg"] },
+    ] } } } } },
+  };
+  const html = `<script id="__FRONTITY_CONNECT_STATE__" type="application/json">${JSON.stringify(state)}</script>`;
+  assert.deepEqual(slidesFromTikTokEmbedHtml(html), { images: ["https://p16/a.jpeg", "https://p16/b.jpeg"], isPhotoPost: true });
+  assert.deepEqual(slidesFromTikTokEmbedHtml("<html></html>"), { images: [], isPhotoPost: false });
+});
+
+test("TikTok post data is found even if its location in the page moves", () => {
+  const html = `<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__" type="application/json">${JSON.stringify({
+    __DEFAULT_SCOPE__: { "webapp.reflow.video.detail": { itemInfo: { itemStruct: {
+      desc: "moved", imagePost: { images: [{ imageURL: { urlList: ["https://p16/x.jpeg"] } }] },
+    } } } },
+  })}</script>`;
+  const p = previewFromTikTokHtml("u", html);
+  assert.equal(p.description, "moved");
+  assert.deepEqual(p.images, ["https://p16/x.jpeg"]);
+  assert.equal(p.isPhotoPost, true);
 });

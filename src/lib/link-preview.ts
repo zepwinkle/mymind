@@ -19,6 +19,8 @@ export interface LinkPreview {
   imageUrl?: string;
   /** Every image in the post (e.g. all slides of a carousel), first one included. */
   images?: string[];
+  /** True when the link is known to be a photo carousel rather than a video. */
+  isPhotoPost?: boolean;
 }
 
 export function detectSource(url: string): Source {
@@ -143,22 +145,63 @@ function firstUrl(value: unknown): string | undefined {
   return typeof url === "string" ? url : undefined;
 }
 
+/** Depth-first search for the first value stored under `key` anywhere in parsed JSON. */
+function findKey(value: unknown, key: string, depth = 0): unknown {
+  if (!value || typeof value !== "object" || depth > 14) return undefined;
+  if (!Array.isArray(value) && key in value) return (value as Record<string, unknown>)[key];
+  for (const child of Object.values(value)) {
+    const found = findKey(child, key, depth + 1);
+    if (found !== undefined) return found;
+  }
+  return undefined;
+}
+
+function scriptJson(html: string, id: string): unknown {
+  const re = new RegExp(`<script[^>]*id=["']${id}["'][^>]*>([\\s\\S]*?)</script>`, "i");
+  const raw = html.match(re)?.[1];
+  if (!raw) return undefined;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return undefined;
+  }
+}
+
+/** The numeric post ID from a TikTok video or photo link. */
+export function tiktokPostId(url: string): string | undefined {
+  return url.match(/\/(?:video|photo)\/(\d{6,})/)?.[1];
+}
+
+/** TikTok's embed player page (what websites use to embed a post). */
+export function tiktokEmbedUrl(id: string): string {
+  return `https://www.tiktok.com/embed/v2/${id}`;
+}
+
+/**
+ * The embed page carries its own copy of the post data, including carousel slides
+ * (under imagePostInfo.displayImages). Used when the main page didn't give us them.
+ */
+export function slidesFromTikTokEmbedHtml(html: string): { images: string[]; isPhotoPost: boolean } {
+  const info = findKey(scriptJson(html, "__FRONTITY_CONNECT_STATE__"), "imagePostInfo") as
+    | { displayImages?: unknown[]; images?: unknown[] }
+    | undefined;
+  const list = info?.displayImages ?? info?.images ?? [];
+  const images = (Array.isArray(list) ? list : [])
+    .map((img) => firstUrl(img) ?? firstUrl((img as { imageURL?: unknown })?.imageURL))
+    .filter((u): u is string => Boolean(u));
+  return { images, isPhotoPost: Boolean(info) };
+}
+
 /**
  * TikTok pages embed the post's data as JSON. For photo carousels this is the only
  * place the slide images appear, so read the caption, author and every image from it.
  */
 export function previewFromTikTokHtml(url: string, html: string): Partial<LinkPreview> {
-  const json = html.match(
-    /<script[^>]*id=["']__UNIVERSAL_DATA_FOR_REHYDRATION__["'][^>]*>([\s\S]*?)<\/script>/i,
-  )?.[1];
-  if (!json) return {};
-  let item: Record<string, unknown> | undefined;
-  try {
-    const data = JSON.parse(json);
-    item = data?.__DEFAULT_SCOPE__?.["webapp.video-detail"]?.itemInfo?.itemStruct;
-  } catch {
-    return {};
-  }
+  const data = scriptJson(html, "__UNIVERSAL_DATA_FOR_REHYDRATION__") as
+    | { __DEFAULT_SCOPE__?: Record<string, { itemInfo?: { itemStruct?: unknown } }> }
+    | undefined;
+  const item = (data?.__DEFAULT_SCOPE__?.["webapp.video-detail"]?.itemInfo?.itemStruct ??
+    findKey(data, "itemStruct")) as Record<string, unknown> | undefined;
   if (!item || typeof item !== "object") return {};
 
   const imagePost = item.imagePost as { images?: { imageURL?: unknown; display_image?: unknown }[]; cover?: { imageURL?: unknown } } | undefined;
@@ -183,5 +226,6 @@ export function previewFromTikTokHtml(url: string, html: string): Partial<LinkPr
     author: typeof author?.nickname === "string" && author.nickname ? author.nickname : typeof author?.uniqueId === "string" ? author.uniqueId : undefined,
     imageUrl: cover,
     images: slides.length ? slides : cover ? [cover] : undefined,
+    isPhotoPost: Boolean(imagePost),
   };
 }

@@ -6,6 +6,9 @@ import {
   previewFromHtml,
   previewFromOembed,
   previewFromTikTokHtml,
+  slidesFromTikTokEmbedHtml,
+  tiktokEmbedUrl,
+  tiktokPostId,
   type LinkPreview,
 } from "./link-preview";
 
@@ -101,8 +104,38 @@ export async function fetchLinkPreview(url: string): Promise<LinkPreview> {
 
   // The page's own post data is the most complete source (it's the only one with carousel slides).
   preview = { ...preview, ...defined(fromPageData) };
+  if (source === "tiktok") preview = await addTikTokEmbedSlides(preview, fromPageData);
   if (!preview.images?.length && preview.imageUrl) preview.images = [preview.imageUrl];
   return cleanPreview(preview);
+}
+
+/**
+ * Backup for TikTok carousels: when the post page didn't give us the slides (TikTok
+ * often serves servers a stripped-down page), read them from the embed player page.
+ */
+async function addTikTokEmbedSlides(preview: LinkPreview, fromPageData: Partial<LinkPreview>): Promise<LinkPreview> {
+  const isPhoto = /\/photo\//.test(preview.url) || fromPageData.isPhotoPost === true;
+  // Skip known videos; try when it's a carousel, or when the page gave us nothing to go on.
+  if ((preview.images?.length ?? 0) > 1 || (!isPhoto && fromPageData.url)) return { ...preview, isPhotoPost: isPhoto };
+  const id = tiktokPostId(preview.url);
+  if (!id) return { ...preview, isPhotoPost: isPhoto };
+  try {
+    const res = await fetch(tiktokEmbedUrl(id), {
+      headers: { "user-agent": DESKTOP_UA, accept: "text/html", "accept-language": "en" },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) {
+      await res.body?.cancel().catch(() => {});
+      return { ...preview, isPhotoPost: isPhoto };
+    }
+    const embed = slidesFromTikTokEmbedHtml(new TextDecoder().decode(await readLimited(res, MAX_HTML_BYTES)));
+    if (embed.images.length > (preview.images?.length ?? 0)) {
+      return { ...preview, images: embed.images, imageUrl: preview.imageUrl ?? embed.images[0], isPhotoPost: true };
+    }
+    return { ...preview, isPhotoPost: isPhoto || embed.isPhotoPost };
+  } catch {
+    return { ...preview, isPhotoPost: isPhoto };
+  }
 }
 
 export interface DownloadedImage {

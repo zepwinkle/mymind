@@ -58,6 +58,9 @@ export async function processItem(id: string, { refetch = false } = {}): Promise
         const saved = extras.filter((p): p is string => Boolean(p));
         if (saved.length) patch.media_paths = saved;
       }
+      if (preview.isPhotoPost && imageUrls.length < 2) {
+        problems.push("TikTok only shared the cover of this carousel, so the other slides couldn't be saved.");
+      }
       if (!caption && !patch.thumbnail_path && !item.thumbnail_path) {
         problems.push("Couldn't read this link (the site may need a login). Add a screenshot or a note.");
       }
