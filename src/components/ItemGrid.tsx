@@ -34,7 +34,7 @@ function ItemCard({ item }: { item: ItemView }) {
         {item.thumbnail_url ? (
           <img src={item.thumbnail_url} alt="" loading="lazy" className="block w-full" />
         ) : (
-          <div className="p-4 font-serif text-lg leading-snug">
+          <div className="p-4 font-serif text-lg leading-snug [overflow-wrap:anywhere]">
             <span className="line-clamp-6">{item.note || item.caption || title}</span>
           </div>
         )}
@@ -47,7 +47,7 @@ function ItemCard({ item }: { item: ItemView }) {
           <span className="absolute left-2 top-2 rounded-full bg-red-600/80 px-2 py-0.5 text-xs text-white">Needs a look</span>
         )}
       </div>
-      <div className="px-1 pt-1.5">
+      <div className="px-1 pt-1.5 [overflow-wrap:anywhere]">
         <p className="line-clamp-2 text-sm leading-snug">{title}</p>
         <p className="text-xs text-muted">{SOURCE_LABELS[item.source] ?? item.source}</p>
       </div>

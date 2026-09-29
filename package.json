@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.129.0",
-    "@supabase/supabase-js": "^2.117.2",
+    "@netlify/blobs": "^11.1.1",
+    "@netlify/database": "^2.0.1",
     "next": "16.3.7",
     "react": "19.2.8",
     "react-dom": "19.2.8",

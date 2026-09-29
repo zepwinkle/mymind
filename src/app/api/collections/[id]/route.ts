@@ -1,11 +1,12 @@
 import { isAuthorized, unauthorized } from "@/lib/auth";
 import { parseCollectionInput } from "@/lib/collection-input";
-import { db } from "@/lib/supabase";
+import { query } from "@/lib/db";
+import { isUuid } from "@/lib/items";
 
 export async function PATCH(request: Request, ctx: RouteContext<"/api/collections/[id]">) {
   if (!(await isAuthorized(request))) return unauthorized();
   const { id } = await ctx.params;
-  const { data: existing } = await db().from("collections").select("type").eq("id", id).maybeSingle();
+  const [existing] = isUuid(id) ? await query<{ type: string }>(`select type from collections where id = $1`, [id]) : [];
   if (!existing) return Response.json({ error: "Group not found" }, { status: 404 });
 
   const body = await request.json().catch(() => ({}));
@@ -14,15 +15,14 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/collection
   if (input.type === "smart" && !Object.keys(input.filter).length) {
     return Response.json({ error: "Pick at least one category, tag or word to filter by" }, { status: 400 });
   }
-  const { error } = await db().from("collections").update({ name: input.name, filter: input.filter }).eq("id", id);
-  if (error) return Response.json({ error: error.message }, { status: 500 });
+  await query(`update collections set name = $2, filter = $3::jsonb where id = $1`, [id, input.name, JSON.stringify(input.filter)]);
   return Response.json({ ok: true });
 }
 
 export async function DELETE(request: Request, ctx: RouteContext<"/api/collections/[id]">) {
   if (!(await isAuthorized(request))) return unauthorized();
   const { id } = await ctx.params;
-  const { error } = await db().from("collections").delete().eq("id", id);
-  if (error) return Response.json({ error: error.message }, { status: 500 });
+  if (!isUuid(id)) return Response.json({ error: "Group not found" }, { status: 404 });
+  await query(`delete from collections where id = $1`, [id]);
   return Response.json({ ok: true });
 }

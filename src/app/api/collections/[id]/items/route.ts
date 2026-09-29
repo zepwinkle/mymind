@@ -1,9 +1,10 @@
 import { isAuthorized, unauthorized } from "@/lib/auth";
-import { db } from "@/lib/supabase";
+import { query } from "@/lib/db";
+import { isUuid } from "@/lib/items";
 
 async function readItemId(request: Request): Promise<string | undefined> {
   const body = await request.json().catch(() => ({}));
-  return typeof body.itemId === "string" ? body.itemId : undefined;
+  return isUuid(body.itemId) ? body.itemId : undefined;
 }
 
 /** Add an item to a hand-picked group. */
@@ -12,10 +13,13 @@ export async function POST(request: Request, ctx: RouteContext<"/api/collections
   const { id } = await ctx.params;
   const itemId = await readItemId(request);
   if (!itemId) return Response.json({ error: "itemId is required" }, { status: 400 });
-  const { error } = await db()
-    .from("collection_items")
-    .upsert({ collection_id: id, item_id: itemId }, { ignoreDuplicates: true });
-  if (error) return Response.json({ error: error.message }, { status: 500 });
+  if (!isUuid(id)) return Response.json({ error: "Group not found" }, { status: 404 });
+  const [found] = await query(
+    `select 1 from collections c, items i where c.id = $1 and c.type = 'manual' and i.id = $2`,
+    [id, itemId],
+  );
+  if (!found) return Response.json({ error: "Group or item not found" }, { status: 404 });
+  await query(`insert into collection_items (collection_id, item_id) values ($1, $2) on conflict do nothing`, [id, itemId]);
   return Response.json({ ok: true });
 }
 
@@ -25,7 +29,7 @@ export async function DELETE(request: Request, ctx: RouteContext<"/api/collectio
   const { id } = await ctx.params;
   const itemId = await readItemId(request);
   if (!itemId) return Response.json({ error: "itemId is required" }, { status: 400 });
-  const { error } = await db().from("collection_items").delete().eq("collection_id", id).eq("item_id", itemId);
-  if (error) return Response.json({ error: error.message }, { status: 500 });
+  if (!isUuid(id)) return Response.json({ error: "Group not found" }, { status: 404 });
+  await query(`delete from collection_items where collection_id = $1 and item_id = $2`, [id, itemId]);
   return Response.json({ ok: true });
 }

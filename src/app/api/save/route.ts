@@ -3,12 +3,14 @@ import { isAuthorized, unauthorized } from "@/lib/auth";
 import { processItem } from "@/lib/ingest";
 import { detectSource, extractUrl } from "@/lib/link-preview";
 import { uploadMedia } from "@/lib/storage";
-import { db } from "@/lib/supabase";
+import { query } from "@/lib/db";
+import { updateItem } from "@/lib/items";
 
 // Background scraping + AI tagging runs after the response, within this limit.
 export const maxDuration = 60;
 
-const MAX_UPLOAD_BYTES = 12_000_000;
+// Netlify functions accept request bodies up to about 4.5 MB of binary data.
+const MAX_UPLOAD_BYTES = 4_400_000;
 
 /**
  * Save something. Used by the web app and the iPhone Shortcut.
@@ -47,30 +49,23 @@ export async function POST(request: Request) {
   note = note.trim().slice(0, 10_000);
 
   if (image && (image.size > MAX_UPLOAD_BYTES || !image.type.startsWith("image/"))) {
-    return Response.json({ error: "Images must be under 12 MB" }, { status: 400 });
+    return Response.json({ error: "Images must be under 4 MB. Try a smaller screenshot." }, { status: 400 });
   }
   if (!url && !image && !note) {
     return Response.json({ error: "Send a link, an image or a note" }, { status: 400 });
   }
 
-  const { data: item, error } = await db()
-    .from("items")
-    .insert({
-      url: url ?? null,
-      note: note || null,
-      source: url ? detectSource(url) : image ? "image" : "note",
-      status: "processing",
-    })
-    .select("id")
-    .single();
-  if (error || !item) return Response.json({ error: error?.message ?? "Save failed" }, { status: 500 });
+  const [item] = await query<{ id: string }>(
+    `insert into items (url, note, source, status) values ($1, $2, $3, 'processing') returning id`,
+    [url ?? null, note || null, url ? detectSource(url) : image ? "image" : "note"],
+  );
 
   if (image) {
     try {
       const path = await uploadMedia(item.id, "screenshot", new Uint8Array(await image.arrayBuffer()), image.type);
-      await db().from("items").update({ thumbnail_path: path }).eq("id", item.id);
+      await updateItem(item.id, { thumbnail_path: path });
     } catch (err) {
-      await db().from("items").delete().eq("id", item.id);
+      await query(`delete from items where id = $1`, [item.id]);
       return Response.json({ error: err instanceof Error ? err.message : "Upload failed" }, { status: 500 });
     }
   }

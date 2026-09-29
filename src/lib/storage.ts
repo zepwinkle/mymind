@@ -1,15 +1,12 @@
 import "server-only";
-import { db, MEDIA_BUCKET } from "./supabase";
+import { getStore } from "@netlify/blobs";
 import type { Item, ItemView } from "./types";
 
-const EXTENSIONS: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-  "image/gif": "gif",
-  "image/heic": "heic",
-  "image/avif": "avif",
-};
+// Thumbnails and screenshots live in a private Netlify Blobs store. The browser
+// fetches them through /api/media/…, which checks you're signed in.
+function media() {
+  return getStore({ name: "media", consistency: "strong" });
+}
 
 export async function uploadMedia(
   itemId: string,
@@ -17,36 +14,31 @@ export async function uploadMedia(
   bytes: Uint8Array,
   contentType: string,
 ): Promise<string> {
-  const path = `${itemId}/${name}.${EXTENSIONS[contentType] ?? "img"}`;
-  const { error } = await db().storage.from(MEDIA_BUCKET).upload(path, bytes, {
-    contentType,
-    upsert: true,
-  });
-  if (error) throw new Error(`Could not store image: ${error.message}`);
-  return path;
+  const key = `${itemId}/${name}`;
+  await media().set(key, new Blob([bytes as BlobPart], { type: contentType }), { metadata: { contentType } });
+  return key;
 }
 
-export async function downloadMedia(path: string): Promise<{ bytes: Uint8Array; contentType: string } | undefined> {
-  const { data, error } = await db().storage.from(MEDIA_BUCKET).download(path);
-  if (error || !data) return undefined;
-  return { bytes: new Uint8Array(await data.arrayBuffer()), contentType: data.type };
+export async function downloadMedia(key: string): Promise<{ bytes: Uint8Array; contentType: string } | undefined> {
+  const entry = await media().getWithMetadata(key, { type: "arrayBuffer" });
+  if (!entry) return undefined;
+  const contentType = typeof entry.metadata.contentType === "string" ? entry.metadata.contentType : "application/octet-stream";
+  return { bytes: new Uint8Array(entry.data), contentType };
 }
 
 export async function deleteMediaFolder(itemId: string): Promise<void> {
-  const bucket = db().storage.from(MEDIA_BUCKET);
-  const { data } = await bucket.list(itemId);
-  if (data?.length) await bucket.remove(data.map((f) => `${itemId}/${f.name}`));
+  const store = media();
+  const { blobs } = await store.list({ prefix: `${itemId}/` });
+  await Promise.all(blobs.map((b) => store.delete(b.key)));
 }
 
-/** Adds a signed (temporary) thumbnail URL to each item. */
+/** Adds the URL the browser should use for each item's thumbnail. */
 export async function withThumbnails(items: Item[]): Promise<ItemView[]> {
-  const paths = [...new Set(items.map((i) => i.thumbnail_path).filter((p): p is string => !!p))];
-  const urls = new Map<string, string>();
-  if (paths.length) {
-    const { data } = await db().storage.from(MEDIA_BUCKET).createSignedUrls(paths, 60 * 60 * 6);
-    for (const entry of data ?? []) {
-      if (entry.path && entry.signedUrl) urls.set(entry.path, entry.signedUrl);
-    }
-  }
-  return items.map((i) => ({ ...i, thumbnail_url: i.thumbnail_path ? urls.get(i.thumbnail_path) ?? null : null }));
+  return items.map((i) => ({
+    ...i,
+    // The version param changes whenever the item changes, so browsers can cache images safely.
+    thumbnail_url: i.thumbnail_path
+      ? `/api/media/${i.thumbnail_path.split("/").map(encodeURIComponent).join("/")}?v=${Date.parse(i.updated_at) || 0}`
+      : null,
+  }));
 }

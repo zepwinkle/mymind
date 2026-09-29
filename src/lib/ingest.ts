@@ -2,7 +2,8 @@ import "server-only";
 import { aiEnabled, tagItem } from "./ai";
 import { downloadImage, fetchLinkPreview } from "./fetch-preview";
 import { downloadMedia, uploadMedia } from "./storage";
-import { db } from "./supabase";
+import { query } from "./db";
+import { updateItem } from "./items";
 import type { Item } from "./types";
 
 function message(err: unknown): string {
@@ -15,8 +16,8 @@ function message(err: unknown): string {
  * Runs in the background after the save request has already returned.
  */
 export async function processItem(id: string, { refetch = false } = {}): Promise<void> {
-  const { data: item, error } = await db().from("items").select("*").eq("id", id).single<Item>();
-  if (error || !item) return;
+  const [item] = await query<Item>(`select * from items where id = $1`, [id]);
+  if (!item) return;
 
   const patch: Partial<Item> = {};
   const problems: string[] = [];
@@ -67,6 +68,9 @@ export async function processItem(id: string, { refetch = false } = {}): Promise
     patch.error = [...problems, message(err)].join(" ");
   }
 
-  const { error: saveError } = await db().from("items").update(patch).eq("id", id);
-  if (saveError) console.error(`processItem ${id}: could not save`, saveError);
+  try {
+    await updateItem(id, patch);
+  } catch (err) {
+    console.error(`processItem ${id}: could not save`, err);
+  }
 }

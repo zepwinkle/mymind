@@ -1,6 +1,6 @@
 import { isAuthorized, unauthorized } from "@/lib/auth";
 import { parseCollectionInput } from "@/lib/collection-input";
-import { db } from "@/lib/supabase";
+import { query } from "@/lib/db";
 
 export async function POST(request: Request) {
   if (!(await isAuthorized(request))) return unauthorized();
@@ -9,7 +9,9 @@ export async function POST(request: Request) {
   if (input.type === "smart" && !Object.keys(input.filter).length) {
     return Response.json({ error: "Pick at least one category, tag or word to filter by" }, { status: 400 });
   }
-  const { data, error } = await db().from("collections").insert(input).select("id").single();
-  if (error) return Response.json({ error: error.message }, { status: 500 });
-  return Response.json({ id: data.id }, { status: 201 });
+  const [group] = await query<{ id: string }>(
+    `insert into collections (name, type, filter) values ($1, $2, $3::jsonb) returning id`,
+    [input.name, input.type, JSON.stringify(input.filter)],
+  );
+  return Response.json({ id: group.id }, { status: 201 });
 }

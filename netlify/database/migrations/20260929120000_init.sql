@@ -1,7 +1,6 @@
--- mymind schema: saved items, groups (manual + smart), and a private storage bucket.
--- Run this once in the Supabase SQL editor (or with `supabase db push`).
-
-create extension if not exists pgcrypto;
+-- mymind schema: saved items and groups (hand-picked + automatic).
+-- Netlify applies this automatically on deploy. Never edit it once deployed:
+-- add a new, later-numbered migration file instead.
 
 create table if not exists items (
   id uuid primary key default gen_random_uuid(),
@@ -17,7 +16,7 @@ create table if not exists items (
   -- scraped from the link preview
   caption text,
   author text,
-  thumbnail_path text,                          -- path inside the "media" storage bucket
+  thumbnail_path text,                          -- key in the "media" Netlify Blobs store
 
   -- written by the AI (editable)
   title text,
@@ -78,21 +77,3 @@ create table if not exists collection_items (
 );
 
 create index if not exists collection_items_item_idx on collection_items (item_id);
-
--- The app talks to the database only from the server with the service-role key,
--- so lock the tables away from the public (anon) API entirely.
-alter table items enable row level security;
-alter table collections enable row level security;
-alter table collection_items enable row level security;
-
--- Private bucket for thumbnails and screenshots (served through short-lived signed URLs).
--- Guarded so this file also runs on a plain Postgres without Supabase Storage.
-do $$
-begin
-  if to_regclass('storage.buckets') is not null then
-    insert into storage.buckets (id, name, public)
-    values ('media', 'media', false)
-    on conflict (id) do nothing;
-  end if;
-end;
-$$;

@@ -1,0 +1,5 @@
+# Netlify detects Next.js automatically; this just makes the build explicit.
+# Database migrations in netlify/database/migrations are applied on every deploy.
+[build]
+  command = "npm run build"
+  publish = ".next"

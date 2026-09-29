@@ -4,7 +4,7 @@ import { Header } from "@/components/Header";
 
 export default async function SetupPage() {
   const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "your-app.vercel.app";
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "your-site.netlify.app";
   const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
   const endpoint = `${proto}://${host}/api/save`;
   const tokenSet = (process.env.SAVE_TOKEN ?? "").length >= 16;
@@ -29,7 +29,7 @@ export default async function SetupPage() {
           <p className="text-sm">
             {tokenSet ? (
               <>
-                It&apos;s the <code>SAVE_TOKEN</code> value you set in your hosting settings. (It&apos;s not shown here on
+                It&apos;s the <code>SAVE_TOKEN</code> value you set in Netlify (Project configuration → Environment variables). (It&apos;s not shown here on
                 purpose.)
               </>
             ) : (

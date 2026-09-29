@@ -4,7 +4,7 @@ A personal, AI-organised library for things you save: TikToks, Instagram posts, 
 screenshots and notes, inspired by the mymind app.
 
 - **Save from anywhere**: an iPhone Share-menu Shortcut, or the **+ Save** button (link, image, note).
-- **Thumbnails**: pulled from each link's preview and copied into your own storage, because platform
+- **Thumbnails**: pulled from each link's preview and copied into your own private storage, because platform
   image links expire. When a site needs a login (often Instagram), attach a screenshot instead.
 - **AI tagging**: Claude looks at the image and caption (and your note) and writes a title, category,
   tags and summary. For recipes it also pulls out the ingredients and steps.
@@ -15,51 +15,57 @@ screenshots and notes, inspired by the mymind app.
 
 ## How it fits together
 
+Everything runs on **Netlify**:
+
 ```
 iPhone Share → Shortcut ─┐
-                         ├─► /api/save ─► Supabase (database + image storage)
-Web app "+ Save" ────────┘        │
+                         ├─► /api/save ─► Netlify Database (items, tags, groups)
+Web app "+ Save" ────────┘        │       Netlify Blobs (thumbnails & screenshots, private)
+                                  │
                                   └─ in the background: read link preview → save thumbnail
                                      → Claude tags it → shows up in your grid
 ```
 
-Built with Next.js (web app + API), Supabase (Postgres + storage) and the Claude API.
+Built with Next.js (web app + API) and the Claude API. The database schema lives in
+[`netlify/database/migrations/`](netlify/database/migrations), and Netlify applies it automatically on every deploy.
 
 ## Setup
 
-You'll need free accounts at **Supabase**, **Vercel** and the **Anthropic Console**.
+You need a **Netlify** account and an **Anthropic Console** account (for the AI tagging).
 
-1. **Supabase**: create a project. Open **SQL Editor**, paste in all of
-   [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) and run it. This creates
-   the tables and a private `media` storage bucket.
-   Then in **Project Settings → API**, copy the **Project URL** and the **service_role** key.
-2. **Anthropic**: create an API key at console.anthropic.com.
-3. **Vercel**: *Add New → Project*, import this GitHub repo, and add these environment variables
-   (see [`.env.example`](.env.example)):
+1. **Anthropic**: at console.anthropic.com, add some credit and create an API key.
+2. **Netlify**: *Add new project → Import an existing project*, pick this GitHub repo, and keep the
+   detected settings. Before the first deploy (or straight after), go to **Project configuration →
+   Environment variables** and add:
 
    | Name | Value |
    |---|---|
-   | `SUPABASE_URL` | Supabase Project URL |
-   | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service_role key |
    | `ANTHROPIC_API_KEY` | your Anthropic key |
    | `APP_PASSWORD` | the password you'll use to open the app |
    | `SAVE_TOKEN` | a long random string for the Shortcut (e.g. from a password generator) |
 
-   Deploy. Open the site, sign in with your password, and in Safari tap **Share → Add to Home Screen**.
+   Then **Deploys → Trigger deploy**. Settings only take effect after a new deploy.
+   The database and image storage are created automatically on the first deploy, with no setup needed.
+3. Open your site, sign in with your password, and in Safari tap **Share → Add to Home Screen**.
 4. **iPhone Shortcut**: follow [`docs/iphone-shortcut.md`](docs/iphone-shortcut.md).
 
+> Netlify Database needs a Netlify account on a **credit-based plan** (all new accounts are).
+> If the first deploy says the database feature isn't available for your account, your account is on
+> an older plan. Switch plans under Team settings → Billing.
+
 ### Costs
-Supabase and Vercel free tiers are plenty for personal use. Tagging uses Claude Opus 5.5 by default,
-which costs roughly 1–2¢ per saved item. To make it cheaper, set `CLAUDE_MODEL=claude-sonnet-5-5`
-(about half the price).
+Personal use fits in Netlify's free credits. Tagging uses Claude Opus 5.5 by default, roughly 1–2¢ per
+saved item. To make it cheaper, add `CLAUDE_MODEL` = `claude-sonnet-5-5` (about half the price).
 
 ## Local development
 
 ```bash
 npm install
-cp .env.example .env.local   # fill in the values
-npm run dev                  # http://localhost:3000
-npm test                     # unit tests
+npm install -g netlify-cli
+netlify link                          # connect to your Netlify site
+netlify dev                           # runs the app with a local database + blob storage
+netlify database migrations apply     # first time only: create the tables locally
+npm test                              # unit tests
 npm run lint && npm run typecheck
 ```
 

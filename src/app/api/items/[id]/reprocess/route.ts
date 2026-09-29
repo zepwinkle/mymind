@@ -1,7 +1,7 @@
 import { after } from "next/server";
 import { isAuthorized, unauthorized } from "@/lib/auth";
 import { processItem } from "@/lib/ingest";
-import { db } from "@/lib/supabase";
+import { isUuid, updateItem } from "@/lib/items";
 
 export const maxDuration = 60;
 
@@ -9,8 +9,8 @@ export const maxDuration = 60;
 export async function POST(request: Request, ctx: RouteContext<"/api/items/[id]/reprocess">) {
   if (!(await isAuthorized(request))) return unauthorized();
   const { id } = await ctx.params;
-  const { error } = await db().from("items").update({ status: "processing", error: null }).eq("id", id);
-  if (error) return Response.json({ error: error.message }, { status: 500 });
+  if (!isUuid(id)) return Response.json({ error: "Not found" }, { status: 404 });
+  await updateItem(id, { status: "processing", error: null });
   after(() => processItem(id, { refetch: true }));
   return Response.json({ ok: true });
 }

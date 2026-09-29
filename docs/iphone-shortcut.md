@@ -6,8 +6,8 @@ your library, where the AI reads and tags it.
 
 You need two things from your deployed app (both are shown on the app's **/setup** page):
 
-- **Save address**: `https://YOUR-APP.vercel.app/api/save`
-- **Save token**: the `SAVE_TOKEN` value you set in Vercel
+- **Save address**: `https://YOUR-SITE.netlify.app/api/save`
+- **Save token**: the `SAVE_TOKEN` value you set in Netlify
 
 ## Build it (about 10 minutes, once)
 
@@ -50,7 +50,7 @@ keep **URLs**, **Safari web pages**, **Images** and **Text** ticked. Set *"If th
 
 ### 7. Send it
 Add **Get Contents of URL**:
-- URL: your save address, e.g. `https://YOUR-APP.vercel.app/api/save`
+- URL: your save address, e.g. `https://YOUR-SITE.netlify.app/api/save`
 - Tap **Show More**:
   - Method: **POST**
   - Headers: add one, Key `Authorization`, Value `Bearer YOUR_SAVE_TOKEN`
