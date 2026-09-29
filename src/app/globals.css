@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #f6f4ef;
+  --fg: #1d1c1a;
+  --muted: #77736b;
+  --card: #ffffff;
+  --border: #e4e0d7;
+  --accent: #e8572a;
+  --chip: #ebe7de;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #151412;
+    --fg: #ece9e2;
+    --muted: #9b968c;
+    --card: #1f1e1b;
+    --border: #2f2d29;
+    --accent: #ff7a4d;
+    --chip: #2a2825;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-card: var(--card);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-chip: var(--chip);
+  --font-sans: var(--font-geist-sans);
+  --font-serif: var(--font-serif);
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.masonry {
+  columns: 2 160px;
+  column-gap: 12px;
+}
+@media (min-width: 640px) {
+  .masonry {
+    columns: 3 200px;
+    column-gap: 16px;
+  }
+}
+@media (min-width: 1024px) {
+  .masonry {
+    columns: 5 200px;
+  }
+}
+.masonry > * {
+  break-inside: avoid;
+  margin-bottom: 12px;
+}
+@media (min-width: 640px) {
+  .masonry > * {
+    margin-bottom: 16px;
+  }
+}
