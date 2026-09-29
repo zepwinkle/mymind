@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ItemView } from "@/lib/types";
 import { AutoRefresh } from "./AutoRefresh";
+import { Masonry } from "./Masonry";
 
 const SOURCE_LABELS: Record<string, string> = {
   tiktok: "TikTok",
@@ -17,11 +18,11 @@ export function ItemGrid({ items, empty }: { items: ItemView[]; empty: React.Rea
   return (
     <>
       <AutoRefresh active={items.some((i) => i.status === "processing")} />
-      <div className="masonry">
+      <Masonry>
         {items.map((item) => (
           <ItemCard key={item.id} item={item} />
         ))}
-      </div>
+      </Masonry>
     </>
   );
 }

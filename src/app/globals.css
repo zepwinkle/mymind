@@ -38,28 +38,3 @@ body {
   background: var(--bg);
   color: var(--fg);
 }
-
-.masonry {
-  columns: 2 160px;
-  column-gap: 12px;
-}
-@media (min-width: 640px) {
-  .masonry {
-    columns: 3 200px;
-    column-gap: 16px;
-  }
-}
-@media (min-width: 1024px) {
-  .masonry {
-    columns: 5 200px;
-  }
-}
-.masonry > * {
-  break-inside: avoid;
-  margin-bottom: 12px;
-}
-@media (min-width: 640px) {
-  .masonry > * {
-    margin-bottom: 16px;
-  }
-}
