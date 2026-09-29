@@ -31,23 +31,23 @@ Built with Next.js (web app + API) and the Claude API. The database schema lives
 
 ## Setup
 
-You need a **Netlify** account and an **Anthropic Console** account (for the AI tagging).
+You need a **Netlify** account on a credit-based plan (the free plan works). AI tagging runs
+through Netlify's AI Gateway, so no Anthropic account is needed.
 
-1. **Anthropic**: at console.anthropic.com, add some credit and create an API key.
-2. **Netlify**: *Add new project → Import an existing project*, pick this GitHub repo, and keep the
+1. **Netlify**: *Add new project → Import an existing project*, pick this GitHub repo, and keep the
    detected settings. Before the first deploy (or straight after), go to **Project configuration →
    Environment variables** and add:
 
    | Name | Value |
    |---|---|
-   | `ANTHROPIC_API_KEY` | your Anthropic key |
    | `APP_PASSWORD` | the password you'll use to open the app |
    | `SAVE_TOKEN` | a long random string for the Shortcut (e.g. from a password generator) |
+   | `CLAUDE_MODEL` | optional, e.g. `claude-sonnet-5-5` to use fewer credits |
 
    Then **Deploys → Trigger deploy**. Settings only take effect after a new deploy.
    The database and image storage are created automatically on the first deploy, with no setup needed.
-3. Open your site, sign in with your password, and in Safari tap **Share → Add to Home Screen**.
-4. **iPhone Shortcut**: follow [`docs/iphone-shortcut.md`](docs/iphone-shortcut.md).
+2. Open your site, sign in with your password, and in Safari tap **Share → Add to Home Screen**.
+3. **iPhone Shortcut**: follow [`docs/iphone-shortcut.md`](docs/iphone-shortcut.md).
 
 > Netlify Database needs a Netlify account on a **credit-based plan** (all new accounts are).
 > If the first deploy says the database feature isn't available for your account, your account is on
