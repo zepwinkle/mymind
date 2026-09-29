@@ -48,7 +48,8 @@ Look at the image and any caption, then describe the item so it is easy to find 
 
 - Pick the kind that best matches what the item is about. Food and drink to cook or make is "recipe";
   clothes, outfits and accessories are "fashion"; interiors, decor and gardening are "home";
-  anything that is mainly a product to buy is "shopping"; tutorials and tips are "learning".
+  anything that is mainly a product to buy is "shopping"; tutorials and tips are "learning";
+  routines, habits, self-care, wellbeing, mindset and romanticising everyday life are "lifestyle".
 - Tags should be what the owner would type into search: specific nouns first (dish, ingredient,
   garment, place, colour, style), then broader themes. No hashtags, no "#", no platform names.
 - Base everything on what is actually in the image and text. Leave fields empty rather than guess
