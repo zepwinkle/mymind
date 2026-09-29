@@ -49,10 +49,24 @@ const SYSTEM = `You organise a personal visual bookmarking library (like the mym
 Each item is something the owner saved from TikTok, Instagram, Pinterest, the web, or a screenshot.
 Look at the image and any caption, then describe the item so it is easy to find later.
 
-- Pick the kind that best matches what the item is about. Food and drink to cook or make is "recipe";
-  clothes, outfits and accessories are "fashion"; interiors, decor and gardening are "home";
-  anything that is mainly a product to buy is "shopping"; tutorials and tips are "learning";
-  routines, habits, self-care, wellbeing, mindset and romanticising everyday life are "lifestyle".
+- Pick the kind that best matches what the item is about:
+  "recipe": food and drink to cook or make.
+  "fashion": clothes, outfits, accessories and style inspiration.
+  "making": things made by hand: sewing, crochet, knitting, felting, embroidery, upcycling, DIY and
+    crafts, including their patterns, projects, techniques and tutorials.
+  "home": interiors, decor, furniture, organisation, gardening and houseplants.
+  "beauty": makeup, skincare, hair and nails.
+  "fitness": workouts, exercise, sport and physical health.
+  "lifestyle": routines, habits, self-care, wellbeing, mindset and romanticising everyday life.
+  "travel": trips and destinations, local outings, restaurants, cafes and things to do, hiking,
+    camping, caravans and outdoor gear.
+  "design": art, illustration, graphic design and visual inspiration.
+  "learning": general tutorials, tips and how-tos that don't fit a more specific kind above.
+  "work": AI, productivity, career, business and work tools.
+  "entertainment": books, films, TV, music (including learning an instrument), podcasts, games and memes.
+  "quote": a quote or saying is the main content.
+  A product for sale goes under what it is (a lamp is "home", a jacket is "fashion"); there is no
+  shopping kind. Use "other" only when nothing else fits.
 - Tags should be what the owner would type into search: specific nouns first (dish, ingredient,
   garment, place, colour, style), then broader themes. No hashtags, no "#", no platform names.
 - Base everything on what is actually in the image and text. Leave fields empty rather than guess

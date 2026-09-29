@@ -3,16 +3,17 @@ import type { Source } from "./link-preview";
 export const KINDS = [
   "recipe",
   "fashion",
+  "making",
   "home",
   "beauty",
   "fitness",
   "lifestyle",
   "travel",
   "design",
-  "shopping",
-  "quote",
   "learning",
+  "work",
   "entertainment",
+  "quote",
   "other",
 ] as const;
 
@@ -20,17 +21,18 @@ export type Kind = (typeof KINDS)[number];
 
 export const KIND_LABELS: Record<Kind, string> = {
   recipe: "Recipes",
-  fashion: "Fashion",
-  home: "Home & interiors",
+  fashion: "Fashion & style",
+  making: "Making & crafts",
+  home: "Home & garden",
   beauty: "Beauty",
-  fitness: "Fitness",
+  fitness: "Health & fitness",
   lifestyle: "Lifestyle & wellbeing",
-  travel: "Travel & places",
+  travel: "Travel & outdoors",
   design: "Art & design",
-  shopping: "Shopping",
-  quote: "Quotes",
   learning: "Learning & how-to",
-  entertainment: "Fun & entertainment",
+  work: "Work & career",
+  entertainment: "Books, film & music",
+  quote: "Quotes",
   other: "Other",
 };
 
