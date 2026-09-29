@@ -10,7 +10,7 @@ export function toPrefixQuery(q: string): string | undefined {
 }
 
 const ITEM_COLUMNS = `i.id, i.created_at, i.updated_at, i.url, i.source, i.status, i.error, i.caption, i.author,
-  i.thumbnail_path, i.title, i.kind, i.summary, i.tags, i.details, i.note`;
+  i.thumbnail_path, i.media_paths, i.title, i.kind, i.summary, i.tags, i.details, i.note`;
 
 export interface ItemQuery {
   q?: string;

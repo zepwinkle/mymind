@@ -39,7 +39,7 @@ export interface TagInput {
   caption?: string | null;
   author?: string | null;
   note?: string | null;
-  image?: { bytes: Uint8Array; contentType: string };
+  images?: { bytes: Uint8Array; contentType: string }[];
 }
 
 export interface TagOutput {
@@ -69,12 +69,10 @@ export async function tagItem(input: TagInput): Promise<TagOutput> {
   client ??= new Anthropic();
 
   const content: Anthropic.Beta.BetaContentBlockParam[] = [];
-  const image = input.image;
-  if (
-    image &&
-    (AI_IMAGE_TYPES as readonly string[]).includes(image.contentType) &&
-    image.bytes.byteLength <= MAX_AI_IMAGE_BYTES
-  ) {
+  for (const image of input.images ?? []) {
+    if (!(AI_IMAGE_TYPES as readonly string[]).includes(image.contentType) || image.bytes.byteLength > MAX_AI_IMAGE_BYTES) {
+      continue;
+    }
     content.push({
       type: "image",
       source: {
@@ -92,6 +90,7 @@ export async function tagItem(input: TagInput): Promise<TagOutput> {
     input.caption && `Caption / page text:\n<caption>\n${input.caption.slice(0, 4000)}\n</caption>`,
     input.note && `Owner's note:\n<note>\n${input.note.slice(0, 4000)}\n</note>`,
     content.length === 0 && "(No image is available for this item.)",
+    content.length > 1 && `(These ${content.length} images are slides from the same post, in order.)`,
   ].filter(Boolean);
   content.push({ type: "text", text: lines.join("\n\n") });
 

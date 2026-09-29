@@ -38,6 +38,11 @@ function ItemCard({ item }: { item: ItemView }) {
             <span className="line-clamp-6">{item.note || item.caption || title}</span>
           </div>
         )}
+        {item.image_urls.length > 1 && (
+          <span className="absolute right-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-xs text-white backdrop-blur">
+            ▦ {item.image_urls.length}
+          </span>
+        )}
         {item.status === "processing" && (
           <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-xs text-white backdrop-blur">
             Reading…

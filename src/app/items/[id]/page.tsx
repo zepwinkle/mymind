@@ -26,7 +26,21 @@ export default async function ItemPage({ params }: PageProps<"/items/[id]">) {
       <AutoRefresh active={item.status === "processing"} />
       <main className="mx-auto grid max-w-6xl gap-8 px-4 py-6 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
         <div>
-          {item.thumbnail_url ? (
+          {item.image_urls.length > 1 ? (
+            <div>
+              <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 [scrollbar-width:thin]">
+                {item.image_urls.map((src, i) => (
+                  <div key={src} className="relative w-[85%] shrink-0 snap-center md:w-[90%]">
+                    <img src={src} alt="" className="w-full rounded-2xl bg-card shadow-sm ring-1 ring-border" loading={i > 1 ? "lazy" : undefined} />
+                    <span className="absolute right-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-xs text-white">
+                      {i + 1} / {item.image_urls.length}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-center text-xs text-muted">Swipe to see all {item.image_urls.length} images</p>
+            </div>
+          ) : item.thumbnail_url ? (
             <img src={item.thumbnail_url} alt="" className="w-full rounded-2xl bg-card shadow-sm ring-1 ring-border" />
           ) : (
             <div className="rounded-2xl bg-card p-8 font-serif text-2xl leading-snug ring-1 ring-border">

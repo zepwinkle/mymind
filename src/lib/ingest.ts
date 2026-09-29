@@ -6,6 +6,9 @@ import { query } from "./db";
 import { updateItem } from "./items";
 import type { Item } from "./types";
 
+const MAX_EXTRA_IMAGES = 19;
+const MAX_AI_IMAGES = 4;
+
 function message(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
@@ -31,13 +34,29 @@ export async function processItem(id: string, { refetch = false } = {}): Promise
       if (caption) patch.caption = caption;
       if (preview.author) patch.author = preview.author;
 
-      if (!item.thumbnail_path && preview.imageUrl) {
+      const imageUrls = preview.images?.length ? preview.images : preview.imageUrl ? [preview.imageUrl] : [];
+      if (!item.thumbnail_path && imageUrls[0]) {
         try {
-          const image = await downloadImage(preview.imageUrl);
+          const image = await downloadImage(imageUrls[0]);
           if (image) patch.thumbnail_path = await uploadMedia(id, "thumbnail", image.bytes, image.contentType);
         } catch (err) {
           problems.push(`Couldn't save the thumbnail: ${message(err)}`);
         }
+      }
+      // Carousels: keep a copy of every other slide too (links to them expire).
+      if (!item.media_paths?.length && imageUrls.length > 1) {
+        const extras = await Promise.all(
+          imageUrls.slice(1, MAX_EXTRA_IMAGES + 1).map(async (src, i) => {
+            try {
+              const image = await downloadImage(src);
+              return image ? await uploadMedia(id, `image-${i + 2}`, image.bytes, image.contentType) : undefined;
+            } catch {
+              return undefined;
+            }
+          }),
+        );
+        const saved = extras.filter((p): p is string => Boolean(p));
+        if (saved.length) patch.media_paths = saved;
       }
       if (!caption && !patch.thumbnail_path && !item.thumbnail_path) {
         problems.push("Couldn't read this link (the site may need a login). Add a screenshot or a note.");
@@ -48,14 +67,18 @@ export async function processItem(id: string, { refetch = false } = {}): Promise
     if (!aiEnabled()) {
       problems.push("AI tagging is off: set ANTHROPIC_API_KEY.");
     } else if (current.caption || current.note || current.thumbnail_path) {
-      const image = current.thumbnail_path ? await downloadMedia(current.thumbnail_path) : undefined;
+      // Show the AI the cover plus the first few slides of a carousel.
+      const keys = [current.thumbnail_path, ...(current.media_paths ?? [])].filter((k): k is string => Boolean(k));
+      const images = (await Promise.all(keys.slice(0, MAX_AI_IMAGES).map(downloadMedia))).filter(
+        (img): img is NonNullable<typeof img> => Boolean(img),
+      );
       const tagged = await tagItem({
         source: current.source,
         url: current.url,
         caption: current.caption,
         author: current.author,
         note: current.note,
-        image,
+        images,
       });
       Object.assign(patch, tagged);
     }

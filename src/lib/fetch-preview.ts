@@ -5,11 +5,15 @@ import {
   oembedEndpoint,
   previewFromHtml,
   previewFromOembed,
+  previewFromTikTokHtml,
   type LinkPreview,
 } from "./link-preview";
 
 const BROWSER_UA =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
+// TikTok only embeds a post's full data (including carousel slides) for desktop browsers.
+const DESKTOP_UA =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36";
 // Instagram only shows preview tags to link-preview crawlers, not to browsers.
 const CRAWLER_UA = "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)";
 
@@ -39,6 +43,10 @@ async function readLimited(res: Response, limit: number): Promise<Uint8Array> {
   return out;
 }
 
+function defined<T extends object>(value: T): Partial<T> {
+  return Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined)) as Partial<T>;
+}
+
 function assertHttp(url: string) {
   const { protocol } = new URL(url);
   if (protocol !== "http:" && protocol !== "https:") throw new Error("Only http(s) links can be saved");
@@ -52,12 +60,13 @@ export async function fetchLinkPreview(url: string): Promise<LinkPreview> {
   assertHttp(url);
   const source = detectSource(url);
   let preview: LinkPreview = { url, source };
+  let fromPageData: Partial<LinkPreview> = {};
 
   try {
     const res = await fetch(url, {
       redirect: "follow",
       headers: {
-        "user-agent": source === "instagram" ? CRAWLER_UA : BROWSER_UA,
+        "user-agent": source === "instagram" ? CRAWLER_UA : source === "tiktok" ? DESKTOP_UA : BROWSER_UA,
         accept: "text/html,application/xhtml+xml",
         "accept-language": "en",
       },
@@ -69,6 +78,7 @@ export async function fetchLinkPreview(url: string): Promise<LinkPreview> {
     if (res.ok && (res.headers.get("content-type") ?? "").includes("html")) {
       const html = new TextDecoder().decode(await readLimited(res, MAX_HTML_BYTES));
       preview = previewFromHtml(finalUrl, source, html);
+      if (source === "tiktok") fromPageData = previewFromTikTokHtml(finalUrl, html);
     } else {
       await res.body?.cancel().catch(() => {});
     }
@@ -82,16 +92,16 @@ export async function fetchLinkPreview(url: string): Promise<LinkPreview> {
       const res = await fetch(endpoint, { signal: AbortSignal.timeout(10_000) });
       if (res.ok) {
         const fromOembed = previewFromOembed(preview.url, source, await res.json());
-        preview = {
-          ...preview,
-          ...Object.fromEntries(Object.entries(fromOembed).filter(([, v]) => v !== undefined)),
-        };
+        preview = { ...preview, ...defined(fromOembed) };
       }
     } catch {
       // Ignore; fall back to whatever the page gave us.
     }
   }
 
+  // The page's own post data is the most complete source (it's the only one with carousel slides).
+  preview = { ...preview, ...defined(fromPageData) };
+  if (!preview.images?.length && preview.imageUrl) preview.images = [preview.imageUrl];
   return cleanPreview(preview);
 }
 
@@ -103,7 +113,12 @@ export interface DownloadedImage {
 export async function downloadImage(url: string): Promise<DownloadedImage | undefined> {
   assertHttp(url);
   const res = await fetch(url, {
-    headers: { "user-agent": BROWSER_UA, accept: "image/*" },
+    headers: {
+      "user-agent": BROWSER_UA,
+      accept: "image/*",
+      // TikTok's image CDN refuses requests that don't look like they came from tiktok.com.
+      ...(/tiktok/i.test(new URL(url).hostname) ? { referer: "https://www.tiktok.com/" } : {}),
+    },
     signal: AbortSignal.timeout(15_000),
   });
   const contentType = (res.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();

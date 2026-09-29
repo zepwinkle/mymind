@@ -32,13 +32,16 @@ export async function deleteMediaFolder(itemId: string): Promise<void> {
   await Promise.all(blobs.map((b) => store.delete(b.key)));
 }
 
-/** Adds the URL the browser should use for each item's thumbnail. */
+/** Adds the URLs the browser should use for each item's images. */
 export async function withThumbnails(items: Item[]): Promise<ItemView[]> {
-  return items.map((i) => ({
-    ...i,
+  return items.map((i) => {
     // The version param changes whenever the item changes, so browsers can cache images safely.
-    thumbnail_url: i.thumbnail_path
-      ? `/api/media/${i.thumbnail_path.split("/").map(encodeURIComponent).join("/")}?v=${Date.parse(i.updated_at) || 0}`
-      : null,
-  }));
+    const url = (key: string) => `/api/media/${key.split("/").map(encodeURIComponent).join("/")}?v=${Date.parse(i.updated_at) || 0}`;
+    const thumbnail_url = i.thumbnail_path ? url(i.thumbnail_path) : null;
+    return {
+      ...i,
+      thumbnail_url,
+      image_urls: [...(thumbnail_url ? [thumbnail_url] : []), ...(i.media_paths ?? []).map(url)],
+    };
+  });
 }

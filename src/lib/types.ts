@@ -49,6 +49,7 @@ export interface Item {
   caption: string | null;
   author: string | null;
   thumbnail_path: string | null;
+  media_paths: string[];
   title: string | null;
   kind: Kind | null;
   summary: string | null;
@@ -60,6 +61,8 @@ export interface Item {
 /** An item plus a short-lived URL for its thumbnail. */
 export interface ItemView extends Item {
   thumbnail_url: string | null;
+  /** Thumbnail first, then any extra images (carousel slides). */
+  image_urls: string[];
 }
 
 export interface SmartFilter {

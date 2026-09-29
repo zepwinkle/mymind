@@ -17,6 +17,8 @@ export interface LinkPreview {
   description?: string;
   author?: string;
   imageUrl?: string;
+  /** Every image in the post (e.g. all slides of a carousel), first one included. */
+  images?: string[];
 }
 
 export function detectSource(url: string): Source {
@@ -42,6 +44,9 @@ export function extractUrl(text: string): string | undefined {
 
 /** Where to ask for a structured preview, for platforms that offer oEmbed without an API key. */
 export function oembedEndpoint(url: string, source: Source): string | undefined {
+  // TikTok's oEmbed only understands video links; photo carousels share the same
+  // ID space, so asking for the /video/ form returns the carousel's cover.
+  if (source === "tiktok") url = url.replace(/\/photo\/(\d+)/, "/video/$1");
   const encoded = encodeURIComponent(url);
   if (source === "tiktok") return `https://www.tiktok.com/oembed?url=${encoded}`;
   if (source === "youtube") return `https://www.youtube.com/oembed?format=json&url=${encoded}`;
@@ -129,4 +134,54 @@ export function cleanPreview(preview: LinkPreview): LinkPreview {
   const junk = /^(instagram|tiktok|pinterest|log ?in|sign ?up|create an account)\b.*$/i;
   const title = preview.title && !junk.test(preview.title) ? preview.title : undefined;
   return { ...preview, title };
+}
+
+function firstUrl(value: unknown): string | undefined {
+  const list = (value as { urlList?: unknown; url_list?: unknown } | undefined)?.urlList ??
+    (value as { url_list?: unknown } | undefined)?.url_list;
+  const url = Array.isArray(list) ? list.find((u) => typeof u === "string" && /^https?:/.test(u)) : undefined;
+  return typeof url === "string" ? url : undefined;
+}
+
+/**
+ * TikTok pages embed the post's data as JSON. For photo carousels this is the only
+ * place the slide images appear, so read the caption, author and every image from it.
+ */
+export function previewFromTikTokHtml(url: string, html: string): Partial<LinkPreview> {
+  const json = html.match(
+    /<script[^>]*id=["']__UNIVERSAL_DATA_FOR_REHYDRATION__["'][^>]*>([\s\S]*?)<\/script>/i,
+  )?.[1];
+  if (!json) return {};
+  let item: Record<string, unknown> | undefined;
+  try {
+    const data = JSON.parse(json);
+    item = data?.__DEFAULT_SCOPE__?.["webapp.video-detail"]?.itemInfo?.itemStruct;
+  } catch {
+    return {};
+  }
+  if (!item || typeof item !== "object") return {};
+
+  const imagePost = item.imagePost as { images?: { imageURL?: unknown; display_image?: unknown }[]; cover?: { imageURL?: unknown } } | undefined;
+  const slides = (imagePost?.images ?? [])
+    .map((img) => firstUrl(img?.imageURL) ?? firstUrl(img?.display_image))
+    .filter((u): u is string => Boolean(u));
+  const video = item.video as { cover?: unknown; originCover?: unknown } | undefined;
+  const cover =
+    slides[0] ??
+    firstUrl(imagePost?.cover?.imageURL) ??
+    (typeof video?.originCover === "string" && video.originCover ? video.originCover : undefined) ??
+    (typeof video?.cover === "string" && video.cover ? video.cover : undefined);
+
+  const author = item.author as { uniqueId?: unknown; nickname?: unknown } | undefined;
+  const title = (imagePost as { title?: unknown } | undefined)?.title;
+  const desc = typeof item.desc === "string" && item.desc.trim() ? item.desc.trim() : undefined;
+  return {
+    url,
+    source: "tiktok",
+    title: typeof title === "string" && title.trim() ? title.trim() : undefined,
+    description: desc,
+    author: typeof author?.nickname === "string" && author.nickname ? author.nickname : typeof author?.uniqueId === "string" ? author.uniqueId : undefined,
+    imageUrl: cover,
+    images: slides.length ? slides : cover ? [cover] : undefined,
+  };
 }
